@@ -1,0 +1,128 @@
+import { Button, VerticalBox, HorizontalBox, LineEdit } from "std-widgets.slint";
+
+export component AppWindow inherits Window {
+    title: "Mamori — Terminal de Seguridad y Control de Acceso (Windows Nativo)";
+    preferred-width: 1024px;
+    preferred-height: 720px;
+    min-width: 800px;
+    min-height: 600px;
+    background: #0f172a; // Slate 900 (Fondo oscuro de alto contraste para garita)
+
+    in-out property <string> active-module: "visitas";
+    in-out property <string> status-text: "Sistema Conectado | Modo Garita Activo";
+
+    callback quick-action(string);
+
+    VerticalBox {
+        padding: 16px;
+        spacing: 12px;
+
+        // HEADER TÁCTICO DE PORTERÍA
+        Rectangle {
+            height: 64px;
+            background: #1e293b;
+            border-radius: 8px;
+
+            HorizontalBox {
+                padding-left: 20px;
+                padding-right: 20px;
+                alignment: space-between;
+
+                Text {
+                    text: "🛡️ MAMORI | Terminal de Portería";
+                    color: #38bdf8;
+                    font-size: 20px;
+                    font-weight: 700;
+                    vertical-alignment: center;
+                }
+
+                Text {
+                    text: root.status-text;
+                    color: #4ade80;
+                    font-size: 14px;
+                    font-weight: 600;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        // BARRA DE ATAJOS RÁPIDOS DE TECLADO (F1 - F5)
+        Rectangle {
+            height: 52px;
+            background: #1e293b;
+            border-radius: 8px;
+
+            HorizontalBox {
+                padding: 8px;
+                spacing: 12px;
+
+                Button {
+                    text: "[F1] Registrar Visita";
+                    clicked => { root.quick-action("visita"); }
+                }
+
+                Button {
+                    text: "[F2] Control Vehicular";
+                    clicked => { root.quick-action("vehiculo"); }
+                }
+
+                Button {
+                    text: "[F3] Paquetería";
+                    clicked => { root.quick-action("paquete"); }
+                }
+
+                Button {
+                    text: "[F4] Unidades & Predios";
+                    clicked => { root.quick-action("unidades"); }
+                }
+
+                Button {
+                    text: "[F5] Minuta & Novedades";
+                    clicked => { root.quick-action("minuta"); }
+                }
+            }
+        }
+
+        // ÁREA PRINCIPAL DE CONTENIDO
+        Rectangle {
+            background: #1e293b;
+            border-radius: 8px;
+
+            VerticalBox {
+                padding: 24px;
+                alignment: center;
+                spacing: 16px;
+
+                Text {
+                    text: "Módulo Activo: " + root.active-module;
+                    color: #f8fafc;
+                    font-size: 18px;
+                    font-weight: 600;
+                    horizontal-alignment: center;
+                }
+
+                Text {
+                    text: "Aplicación 100% Nativa en Rust con Slint (Cero Navegador / Cero HTML).";
+                    color: #94a3b8;
+                    font-size: 14px;
+                    horizontal-alignment: center;
+                }
+            }
+        }
+
+        // FOOTER / STATUS BAR
+        HorizontalBox {
+            alignment: space-between;
+            Text {
+                text: "Presione [F1..F5] para cambiar de módulo | [Esc] Salir";
+                color: #64748b;
+                font-size: 12px;
+            }
+            Text {
+                text: "Mamori v0.1.0 — Compilado Nativo en Rust";
+                color: #64748b;
+                font-size: 12px;
+            }
+        }
+    }
+}

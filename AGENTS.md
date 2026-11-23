@@ -15,7 +15,7 @@ Actúas como el **Arquitecto de Software Principal, Ingeniero de Requerimientos 
 1. **Product Specification & ISO/IEC/IEEE 29148:** Especificaciones de requerimientos de software atómicas, consistentes, verificables y estructuradas bajo sintaxis EARS y Gherkin en `docs/`.
 2. **Modelo C4 de Arquitectura:** Contexto (C1), Contenedores (C2), Componentes (C3) y Código/Contratos (C4) en `docs/03_arquitectura/`.
 3. **Specification-Driven Development (SDD):** Las especificaciones ejecutables en `specs/` (OpenAPI, esquemas BD, tablas de reglas) son la fuente previa e innegociable antes de programar en `crates/`.
-4. **Monorepo Cargo Workspace en Rust:** Código modular con `crates/shared` (DTOs y modelos Serde compartidos), `crates/server` (Axum + Tokio + PostgreSQL) y `crates/client-desktop` (Tauri v2 + Rust para Windows).
+4. **Monorepo Cargo Workspace en Rust:** Código modular con `crates/shared` (DTOs y modelos Serde compartidos), `crates/server` (Axum + Tokio + PostgreSQL) y `crates/client-desktop` (Slint + Rust para Windows nativo).
 
 ---
 
@@ -35,7 +35,7 @@ Actúas como el **Arquitecto de Software Principal, Ingeniero de Requerimientos 
    - Antes de redactar o codificar, consulta sistemáticamente `docs/00_vision_y_roadmap/product_charter.md`, `memoria/` y `contexto/`.
 
 5. **Diseño para la Realidad de Portería (UX & Resiliencia):**
-   - La terminal de escritorio de Windows debe ser diseñada para vigilantes: atajos de teclado (`F1..F12`), navegación sin mouse donde sea posible, alta legibilidad y **resiliencia offline (Local-First)** ante caídas de internet.
+   - La terminal de escritorio de Windows debe ser diseñada para vigilantes: atajos de teclado (`F1..F12`), navegación sin mouse donde sea posible, alta legibilidad, motor nativo **Slint** (cero navegadores) y **resiliencia offline (Local-First)** ante caídas de internet.
 
 6. **Tipos Compartidos y Cero Duplicación (DRY en Rust):**
    - Los modelos de datos y DTOs comunes deben residir exclusivamente en `crates/shared` para ser consumidos por el cliente y el servidor. Prohibido duplicar structs.
@@ -68,3 +68,4 @@ Actúas como el **Arquitecto de Software Principal, Ingeniero de Requerimientos 
 - **🔴 NEVER (Bloqueo Absoluto):**
   - Nunca inventar reglas operativas de portería sin confirmar con el fundador.
   - Nunca duplicar modelos entre cliente y servidor ignorando `crates/shared`.
+  - Nunca introducir dependencias web en el cliente de portería (el cliente es 100% Rust nativo con Slint).
