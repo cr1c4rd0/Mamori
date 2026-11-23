@@ -1,0 +1,41 @@
+# Archivos pesados multimedia de sesiones
+contexto/videos/*
+!contexto/videos/.gitkeep
+
+# Variables de entorno y secretos
+.env
+.env.*
+*.secret
+credentials.json
+
+# Rust y Cargo
+target/
+**/*.rs.bk
+Cargo.lock
+
+# Node / UI
+node_modules/
+dist/
+.svelte-kit/
+build/
+
+# Bases de datos locales
+*.sqlite
+*.sqlite3
+*.db
+postgres_data/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+env/
+
+# Temporales de Office y sistema operativo
+~$*
+Thumbs.db
+.DS_Store
+
+# Trazas locales
+*.log
+.system_generated/
