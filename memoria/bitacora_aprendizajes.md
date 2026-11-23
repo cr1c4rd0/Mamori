@@ -22,8 +22,10 @@
 
 ### [2026-11-22] Aprendizaje 03 — Aprobación de Monorepo Cargo Workspace y Stack Axum
 - **Contexto:** Se consultó la conveniencia de separar en dos repositorios (cliente vs servidor) frente a un Monorepo.
-- **Decisión Aprobada (D-05, D-06):** Mantener un **Monorepo con Cargo Workspace** unificado en Rust:
-  1. `crates/shared`: DTOs, modelos Serde, validaciones y enums compartidos entre cliente y servidor con cero desincronización.
-  2. `crates/server`: Backend central con Rust (Axum + Tokio + SQLx + PostgreSQL).
-  3. `crates/client-desktop`: Terminal de portería Windows (Tauri v2 + Rust).
-- **Beneficio Principal:** Cero duplicidad de código, compilación atómica conjunta con `cargo check --workspace` y máxima agilidad para desarrollo guiado por especificaciones (SDD).
+- **Decisión Aprobada (D-05, D-06):** Mantener un **Monorepo con Cargo Workspace** unificado en Rust (`crates/shared`, `crates/server`, `crates/client-desktop`).
+
+---
+
+### [2026-11-22] Aprendizaje 04 — Protocolo de Traspaso SDD ➔ Lead Rust Engineer
+- **Contexto:** Definición del alcance del rol 5 (*Lead Rust Engineer*).
+- **Regla Establecida (D-07):** El Lead Rust Engineer es un experto en arquitectura y desarrollo de software de producción. Opera estrictamente sobre los artefactos técnicos liberados y aprobados por el *Especificador Técnico (SDD)* en `specs/` (OpenAPI, esquemas BD, tablas de decisión, Gherkin). Esto garantiza que no haya código improvisado ni desalineado con los requerimientos.

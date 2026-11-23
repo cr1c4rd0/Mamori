@@ -6,22 +6,20 @@
 
 ---
 
-## 1. Directorio de Fases del Flujo de Producto
+## 1. Directorio de Roles del Pipeline
 
-| Fase | Enfoque | Artefactos Principales | Estado |
-| :---: | :--- | :--- | :---: |
-| **Fase 0** | **Visión y Descubrimiento** | `docs/00_vision_y_roadmap/product_charter.md`, flujos AS-IS / TO-BE de portería. | 🟢 **COMPLETADA** |
-| **Fase 1** | **Estructura y Workspace Base** | Monorepo Cargo Workspace, `crates/shared`, `server`, `client-desktop`, `infra/`. | 🟢 **COMPLETADA** |
-| **Fase 2** | **Especificación SRS (ISO 29148)** | Redacción de requerimientos funcionales y no funcionales para Residentes, Accesos, Vehículos y Paquetería. | 🟡 **EN PROGRESO** |
-| **Fase 3** | **Especificaciones Técnicas (SDD)** | Contratos OpenAPI, esquemas SQL en `specs/` y escenarios BDD Gherkin. | 🔴 PENDIENTE |
-| **Fase 4** | **Implementación Backend & Shared** | Endpoints de Axum, migraciones SQLx y modelos en `crates/shared`. | 🔴 PENDIENTE |
-| **Fase 5** | **Implementación Terminal Windows** | Interfaz de portería en Tauri v2 con atajos de teclado y resiliencia offline. | 🔴 PENDIENTE |
+| Rol | Agente / Función | Artefacto de Entrada | Artefacto de Salida |
+| :--- | :--- | :--- | :--- |
+| **1. PM / Ingesta** | Orquestador e Ingesta | Insumos crudos, entrevistas, notas en `contexto/` | Minutas, `product_charter.md` y actualización de `memoria/` |
+| **2. Arquitecto SRS** | Elicitación y Requerimientos | Charter, Minutas y flujos de negocio | `docs/01_descubrimiento/flujos_de_proceso/` y `docs/02_requerimientos_srs/` (ISO 29148) |
+| **3. Auditor QA** | Auditor de Consistencia | Documentos SRS (`docs/02/`) + Matriz de Certeza | `memoria/reportes_qa/` (`APROBADO` / `RECHAZADO`) |
+| **4. Diseñador SDD** | Especificador Técnico | SRS Aprobado por QA | `specs/` (OpenAPI 3.0, Esquemas BD, Tablas de Verdad, Gherkin) |
+| **5. Lead Rust Dev** | Ingeniero de Software Principal | **Artefactos liberados por SDD en `specs/`** | Código de producción en `crates/shared`, `crates/server`, `crates/client-desktop` y tests |
 
 ---
 
-## 2. Registro Histórico de Transiciones
+## 2. Estado Actual del Pipeline
 
-| Iteración | Fecha | Fase Origen | Fase Destino | Descripción del Hito |
-| :---: | :---: | :---: | :---: | :--- |
-| **#00** | 2026-11-22 | - | Fase 0 | Inicialización con arnés base. |
-| **#01** | 2026-11-22 | Fase 0 | Fase 1 | Pivote estratégico a Startup/Proyecto Personal: Adopción de Monorepo Cargo Workspace (Rust), estructuración de `crates/`, `docs/`, `specs/`, `infra/` y Product Charter de Mamori. |
+- **Fase Actual:** `Fase 2: Modelado de Flujos y Requerimientos (Rol Activo: Arquitecto SRS)`
+- **Bloqueo Activo:** Ninguno. Plantillas de flujos listas para recibir diagramas y reglas del fundador.
+- **Próximo Hito:** Concluir el modelado de flujos de proceso para proceder a la auditoría QA y posterior especificación técnica ejecutable (SDD).
