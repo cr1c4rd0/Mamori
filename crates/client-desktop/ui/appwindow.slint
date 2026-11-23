@@ -6,6 +6,8 @@ import { LineEdit, ScrollView, ComboBox } from "std-widgets.slint";
 
 component TacticalButton inherits Rectangle {
     in property <string> text;
+    in property <image> icon;
+    in property <bool> has-icon: false;
     in property <bool> active: false;
     in property <bool> primary: false;
     in property <length> font-size: 13px;
@@ -14,7 +16,7 @@ component TacticalButton inherits Rectangle {
 
     horizontal-stretch: root.h-stretch;
     height: 38px;
-    min-width: txt.min-width + 24px;
+    min-width: txt.min-width + (root.has-icon ? 44px : 24px);
     border-radius: 6px;
     border-width: 1px;
     border-color: root.active ? #38bdf8 : (root.primary ? #22c55e : (touch.has-hover ? #3f3f46 : #27272a));
@@ -27,7 +29,18 @@ component TacticalButton inherits Rectangle {
     HorizontalLayout {
         padding-left: 12px;
         padding-right: 12px;
+        spacing: 7px;
         alignment: center;
+
+        if (root.has-icon): VerticalLayout {
+            alignment: center;
+            Image {
+                source: root.icon;
+                width: 15px;
+                height: 15px;
+                colorize: root.active ? #ffffff : (root.primary ? #4ade80 : (touch.has-hover ? #fafafa : #a1a1aa));
+            }
+        }
 
         txt := Text {
             text: root.text;
@@ -44,7 +57,7 @@ component TacticalButton inherits Rectangle {
 component DeleteButton inherits Rectangle {
     callback clicked;
 
-    width: 72px;
+    width: 84px;
     height: 24px;
     border-radius: 4px;
     border-width: 1px;
@@ -56,7 +69,17 @@ component DeleteButton inherits Rectangle {
     }
 
     HorizontalLayout {
+        spacing: 4px;
         alignment: center;
+        VerticalLayout {
+            alignment: center;
+            Image {
+                source: @image-url("icons/trash-2.svg");
+                width: 12px;
+                height: 12px;
+                colorize: del-touch.has-hover ? #ffffff : #f87171;
+            }
+        }
         Text {
             text: "ELIMINAR";
             color: del-touch.has-hover ? #ffffff : #f87171;
@@ -70,11 +93,13 @@ component DeleteButton inherits Rectangle {
 // Botón de acción compacto para filas del dashboard (Dar salida / Entregar)
 component CompactActionButton inherits Rectangle {
     in property <string> text;
+    in property <image> icon;
+    in property <bool> has-icon: false;
     in property <bool> positive: false;
     callback clicked;
 
     height: 26px;
-    min-width: txt.min-width + 18px;
+    min-width: txt.min-width + (root.has-icon ? 32px : 18px);
     border-radius: 4px;
     border-width: 1px;
     border-color: root.positive
@@ -91,7 +116,17 @@ component CompactActionButton inherits Rectangle {
     HorizontalLayout {
         padding-left: 8px;
         padding-right: 8px;
+        spacing: 5px;
         alignment: center;
+        if (root.has-icon): VerticalLayout {
+            alignment: center;
+            Image {
+                source: root.icon;
+                width: 12px;
+                height: 12px;
+                colorize: btn-touch.has-hover ? #ffffff : (root.positive ? #4ade80 : #7dd3fc);
+            }
+        }
         txt := Text {
             text: root.text;
             color: btn-touch.has-hover ? #ffffff : (root.positive ? #4ade80 : #7dd3fc);
@@ -102,8 +137,32 @@ component CompactActionButton inherits Rectangle {
     }
 }
 
-// Ítem de navegación para el panel lateral izquierdo colapsable
+// Botón hamburguesa con icono SVG Lucide (menu.svg)
+component HamburgerButton inherits Rectangle {
+    callback clicked;
+
+    width: 34px;
+    height: 34px;
+    border-radius: 6px;
+    background: hb-touch.has-hover ? #27272a : #18181b;
+    border-width: 1px;
+    border-color: hb-touch.has-hover ? #38bdf8 : #27272a;
+
+    hb-touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    Image {
+        source: @image-url("icons/menu.svg");
+        width: 18px;
+        height: 18px;
+        colorize: hb-touch.has-hover ? #ffffff : #a1a1aa;
+    }
+}
+
+// Ítem de navegación para el panel lateral izquierdo colapsable (con iconos Lucide SVG)
 component SidebarNavItem inherits Rectangle {
+    in property <image> icon;
     in property <string> shortcut;
     in property <string> label;
     in property <bool> active: false;
@@ -121,16 +180,40 @@ component SidebarNavItem inherits Rectangle {
     }
 
     HorizontalLayout {
-        padding-left: root.collapsed ? 0px : 10px;
+        padding-left: root.collapsed ? 0px : 12px;
         padding-right: root.collapsed ? 0px : 10px;
         spacing: 10px;
-        alignment: root.collapsed ? center : start;
+        alignment: root.collapsed ? center : space-between;
 
-        VerticalLayout {
+        HorizontalLayout {
+            spacing: 10px;
+            alignment: root.collapsed ? center : start;
+
+            VerticalLayout {
+                alignment: center;
+                Image {
+                    source: root.icon;
+                    width: 18px;
+                    height: 18px;
+                    colorize: root.active ? #ffffff : (nav-touch.has-hover ? #e4e4e7 : #a1a1aa);
+                }
+            }
+
+            if (!root.collapsed): Text {
+                text: root.label;
+                color: root.active ? #ffffff : (nav-touch.has-hover ? #e4e4e7 : #a1a1aa);
+                font-size: 12px;
+                font-weight: 800;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+        }
+
+        if (!root.collapsed): VerticalLayout {
             alignment: center;
             Rectangle {
-                width: 30px;
-                height: 22px;
+                width: 26px;
+                height: 20px;
                 border-radius: 4px;
                 background: root.active ? #0369a1 : #18181b;
                 border-width: 1px;
@@ -138,22 +221,13 @@ component SidebarNavItem inherits Rectangle {
 
                 Text {
                     text: root.shortcut;
-                    color: root.active ? #ffffff : #a1a1aa;
-                    font-size: 10px;
+                    color: root.active ? #ffffff : #71717a;
+                    font-size: 9px;
                     font-weight: 800;
                     horizontal-alignment: center;
                     vertical-alignment: center;
                 }
             }
-        }
-
-        if (!root.collapsed): Text {
-            text: root.label;
-            color: root.active ? #ffffff : (nav-touch.has-hover ? #e4e4e7 : #a1a1aa);
-            font-size: 12px;
-            font-weight: 800;
-            vertical-alignment: center;
-            overflow: elide;
         }
     }
 }
@@ -310,122 +384,72 @@ export component AppWindow inherits Window {
         }
 
         // ====================================================================
-        // CAPA BASE: VISTA PRINCIPAL
-        // ========================================================================
-        VerticalLayout {
-            padding: 14px;
-            spacing: 12px;
+        // CAPA BASE: SIDEBAR IZQUIERDO FULL-HEIGHT + ÁREA DE TRABAJO DERECHA
+        // ====================================================================
+        HorizontalLayout {
+            padding: 0px;
+            spacing: 0px;
 
-            // 1. HEADER NEGRO PURO
+            // 1. PANEL LATERAL IZQUIERDO FULL-HEIGHT (MENÚ PRINCIPAL)
             Rectangle {
-                height: 58px;
+                width: root.sidebar-collapsed ? 64px : 240px;
+                animate width { duration: 180ms; easing: ease-out; }
+                clip: true;
                 background: #09090b;
-                border-radius: 8px;
-                border-width: 1px;
-                border-color: #18181b;
 
-                HorizontalLayout {
-                    padding-left: 18px;
-                    padding-right: 18px;
-                    alignment: space-between;
+                VerticalLayout {
+                    padding: 0px;
+                    spacing: 0px;
 
-                    HorizontalLayout {
-                        spacing: 12px;
-                        Text {
-                            text: "MAMORI";
-                            color: #ffffff;
-                            font-size: 20px;
-                            font-weight: 900;
-                            vertical-alignment: center;
-                        }
-                        Text {
-                            text: "|  CONTROL DE ACCESO Y SEGURIDAD RESIDENCIAL";
-                            color: #52525b;
-                            font-size: 13px;
-                            font-weight: 600;
-                            vertical-alignment: center;
-                        }
-                    }
+                    // CABECERA DEL SIDEBAR: LOGO MAMORI + MENÚ HAMBURGUESA
+                    Rectangle {
+                        height: 62px;
+                        background: #09090b;
 
-                    HorizontalLayout {
-                        spacing: 10px;
-                        Rectangle {
-                            width: 8px;
-                            height: 8px;
-                            border-radius: 4px;
-                            background: #22c55e;
-                            y: 17px;
-                        }
-                        Text {
-                            text: root.status-text;
-                            color: #a1a1aa;
-                            font-size: 12px;
-                            font-weight: 600;
-                            vertical-alignment: center;
-                        }
-                    }
-                }
-            }
-
-            // 2. CUERPO PRINCIPAL: SIDEBAR IZQUIERDO COLAPSABLE + CONTENIDO ACTIVO
-            HorizontalLayout {
-                vertical-stretch: 1;
-                spacing: 12px;
-
-                // PANEL LATERAL IZQUIERDO COLAPSABLE (MENÚ PRINCIPAL)
-                Rectangle {
-                    width: root.sidebar-collapsed ? 64px : 230px;
-                    animate width { duration: 180ms; easing: ease-out; }
-                    clip: true;
-                    background: #09090b;
-                    border-radius: 8px;
-                    border-width: 1px;
-                    border-color: #18181b;
-
-                    VerticalLayout {
-                        padding: 10px;
-                        spacing: 6px;
-
-                        // Cabecera del sidebar con botón de colapso
                         HorizontalLayout {
-                            height: 32px;
-                            padding-left: root.sidebar-collapsed ? 0px : 6px;
+                            padding-left: root.sidebar-collapsed ? 0px : 16px;
+                            padding-right: root.sidebar-collapsed ? 0px : 12px;
                             alignment: root.sidebar-collapsed ? center : space-between;
 
-                            if (!root.sidebar-collapsed): Text {
-                                text: "MENÚ PRINCIPAL";
-                                color: #71717a;
-                                font-size: 11px;
-                                font-weight: 800;
-                                vertical-alignment: center;
-                            }
-
-                            Rectangle {
-                                width: 30px;
-                                height: 28px;
-                                border-radius: 6px;
-                                background: toggle-sb-touch.has-hover ? #27272a : #18181b;
-                                border-width: 1px;
-                                border-color: toggle-sb-touch.has-hover ? #38bdf8 : #27272a;
-
-                                toggle-sb-touch := TouchArea {
-                                    clicked => { root.sidebar-collapsed = !root.sidebar-collapsed; }
+                            if (!root.sidebar-collapsed): HorizontalLayout {
+                                spacing: 8px;
+                                VerticalLayout {
+                                    alignment: center;
+                                    Image {
+                                        source: @image-url("icons/shield.svg");
+                                        width: 20px;
+                                        height: 20px;
+                                        colorize: #38bdf8;
+                                    }
                                 }
-
                                 Text {
-                                    text: root.sidebar-collapsed ? "»" : "«";
-                                    color: toggle-sb-touch.has-hover ? #ffffff : #a1a1aa;
-                                    font-size: 14px;
+                                    text: "MAMORI";
+                                    color: #ffffff;
+                                    font-size: 20px;
                                     font-weight: 900;
-                                    horizontal-alignment: center;
                                     vertical-alignment: center;
                                 }
                             }
-                        }
 
-                        Rectangle { height: 1px; background: #18181b; }
+                            VerticalLayout {
+                                alignment: center;
+                                HamburgerButton {
+                                    clicked => { root.sidebar-collapsed = !root.sidebar-collapsed; }
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: #18181b; }
+
+                    // LISTA DE MÓDULOS DE NAVEGACIÓN
+                    VerticalLayout {
+                        vertical-stretch: 1;
+                        padding: 10px;
+                        spacing: 6px;
 
                         SidebarNavItem {
+                            icon: @image-url("icons/home.svg");
                             shortcut: "F1";
                             label: "HOME";
                             active: root.active-module == "home";
@@ -433,6 +457,7 @@ export component AppWindow inherits Window {
                             clicked => { root.quick-action("home"); }
                         }
                         SidebarNavItem {
+                            icon: @image-url("icons/users.svg");
                             shortcut: "F2";
                             label: "VISITAS";
                             active: root.active-module == "visita";
@@ -440,6 +465,7 @@ export component AppWindow inherits Window {
                             clicked => { root.quick-action("visita"); }
                         }
                         SidebarNavItem {
+                            icon: @image-url("icons/car.svg");
                             shortcut: "F3";
                             label: "VEHÍCULOS";
                             active: root.active-module == "vehiculo";
@@ -447,6 +473,7 @@ export component AppWindow inherits Window {
                             clicked => { root.quick-action("vehiculo"); }
                         }
                         SidebarNavItem {
+                            icon: @image-url("icons/package.svg");
                             shortcut: "F4";
                             label: "PAQUETERÍA";
                             active: root.active-module == "paquete";
@@ -454,6 +481,7 @@ export component AppWindow inherits Window {
                             clicked => { root.quick-action("paquete"); }
                         }
                         SidebarNavItem {
+                            icon: @image-url("icons/building-2.svg");
                             shortcut: "F5";
                             label: "UNIDADES & PREDIOS";
                             active: root.active-module == "unidades";
@@ -461,6 +489,7 @@ export component AppWindow inherits Window {
                             clicked => { root.quick-action("unidades"); }
                         }
                         SidebarNavItem {
+                            icon: @image-url("icons/clipboard-list.svg");
                             shortcut: "F6";
                             label: "MINUTA & NOVEDADES";
                             active: root.active-module == "minuta";
@@ -475,7 +504,7 @@ export component AppWindow inherits Window {
                             background: #18181b;
                         }
                         if (!root.sidebar-collapsed): Text {
-                            text: "MAMORI PORTERÍA";
+                            text: "MAMORI PORTERÍA v0.1.0";
                             color: #3f3f46;
                             font-size: 10px;
                             font-weight: 800;
@@ -483,17 +512,68 @@ export component AppWindow inherits Window {
                         }
                     }
                 }
+            }
 
-                // ÁREA DE CONTENIDO ACTIVO
-                VerticalLayout {
-                    horizontal-stretch: 1;
-                    vertical-stretch: 1;
-                    spacing: 12px;
+            // SEPARADOR VERTICAL DEL SIDEBAR
+            Rectangle {
+                width: 1px;
+                background: #18181b;
+            }
 
-                    // ================================================================
-                    // 3A. VISTA HOME: DASHBOARD OPERATIVO DE PORTERÍA
-                    // ================================================================
-                    if (root.active-module == "home"): VerticalLayout {
+            // 2. ÁREA DE TRABAJO PRINCIPAL (DERECHA)
+            VerticalLayout {
+                horizontal-stretch: 1;
+                vertical-stretch: 1;
+                padding: 14px;
+                spacing: 12px;
+
+                // BARRA SUPERIOR DE CONTEXTO Y ESTADO EN VIVO
+                Rectangle {
+                    height: 48px;
+                    background: #09090b;
+                    border-radius: 8px;
+                    border-width: 1px;
+                    border-color: #18181b;
+
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
+                        alignment: space-between;
+
+                        Text {
+                            text: "CONTROL DE ACCESO Y SEGURIDAD RESIDENCIAL";
+                            color: #71717a;
+                            font-size: 12px;
+                            font-weight: 800;
+                            vertical-alignment: center;
+                        }
+
+                        HorizontalLayout {
+                            spacing: 10px;
+                            VerticalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    width: 8px;
+                                    height: 8px;
+                                    border-radius: 4px;
+                                    background: #22c55e;
+                                }
+                            }
+                            Text {
+                                text: root.status-text;
+                                color: #a1a1aa;
+                                font-size: 12px;
+                                font-weight: 600;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+
+                // ================================================================
+                // 3A. VISTA HOME: DASHBOARD OPERATIVO DE PORTERÍA
+                // ================================================================
+                if (root.active-module == "home"): VerticalLayout {
                 vertical-stretch: 1;
                 spacing: 12px;
 
@@ -516,8 +596,8 @@ export component AppWindow inherits Window {
                             spacing: 4px;
                             HorizontalLayout {
                                 alignment: space-between;
-                                Text { text: "VISITAS DENTRO DE LA UNIDAD"; color: #71717a; font-size: 11px; font-weight: 800; }
-                                Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #38bdf8; y: 3px; }
+                                Text { text: "VISITAS DENTRO DE LA UNIDAD"; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                                Image { source: @image-url("icons/users.svg"); width: 16px; height: 16px; colorize: #38bdf8; }
                             }
                             HorizontalLayout {
                                 spacing: 10px;
@@ -541,8 +621,8 @@ export component AppWindow inherits Window {
                             spacing: 4px;
                             HorizontalLayout {
                                 alignment: space-between;
-                                Text { text: "PAQUETERÍA PENDIENTE"; color: #71717a; font-size: 11px; font-weight: 800; }
-                                Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #f59e0b; y: 3px; }
+                                Text { text: "PAQUETERÍA PENDIENTE"; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                                Image { source: @image-url("icons/package.svg"); width: 16px; height: 16px; colorize: #f59e0b; }
                             }
                             HorizontalLayout {
                                 spacing: 10px;
@@ -566,8 +646,8 @@ export component AppWindow inherits Window {
                             spacing: 4px;
                             HorizontalLayout {
                                 alignment: space-between;
-                                Text { text: "UNIDADES REGISTRADAS"; color: #71717a; font-size: 11px; font-weight: 800; }
-                                Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #22c55e; y: 3px; }
+                                Text { text: "UNIDADES REGISTRADAS"; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                                Image { source: @image-url("icons/building-2.svg"); width: 16px; height: 16px; colorize: #22c55e; }
                             }
                             HorizontalLayout {
                                 spacing: 10px;
@@ -616,6 +696,8 @@ export component AppWindow inherits Window {
                                 }
                                 CompactActionButton {
                                     text: "IR A VISITAS";
+                                    icon: @image-url("icons/arrow-right.svg");
+                                    has-icon: true;
                                     clicked => { root.quick-action("visita"); }
                                 }
                             }
@@ -634,7 +716,7 @@ export component AppWindow inherits Window {
                                     Text { text: "VISITANTE"; horizontal-stretch: 2; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; }
                                     Text { text: "DESTINO"; horizontal-stretch: 2; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; }
                                     Text { text: "INGRESO"; width: 58px; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; }
-                                    Text { text: "ACCIÓN"; width: 92px; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; horizontal-alignment: right; }
+                                    Text { text: "ACCIÓN"; width: 106px; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; horizontal-alignment: right; }
                                 }
                             }
 
@@ -704,10 +786,12 @@ export component AppWindow inherits Window {
                                             }
 
                                             VerticalLayout {
-                                                width: 92px;
+                                                width: 106px;
                                                 alignment: center;
                                                 CompactActionButton {
                                                     text: "DAR SALIDA";
+                                                    icon: @image-url("icons/log-out.svg");
+                                                    has-icon: true;
                                                     clicked => { root.register-visit-exit(idx); }
                                                 }
                                             }
@@ -750,6 +834,8 @@ export component AppWindow inherits Window {
                                 }
                                 CompactActionButton {
                                     text: "IR A PAQUETERÍA";
+                                    icon: @image-url("icons/arrow-right.svg");
+                                    has-icon: true;
                                     clicked => { root.quick-action("paquete"); }
                                 }
                             }
@@ -768,7 +854,7 @@ export component AppWindow inherits Window {
                                     Text { text: "DESTINO / RESIDENTE"; horizontal-stretch: 2; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; }
                                     Text { text: "EMPRESA / DETALLE"; horizontal-stretch: 2; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; }
                                     Text { text: "RECIBIDO"; width: 58px; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; }
-                                    Text { text: "ACCIÓN"; width: 92px; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; horizontal-alignment: right; }
+                                    Text { text: "ACCIÓN"; width: 106px; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; horizontal-alignment: right; }
                                 }
                             }
 
@@ -840,10 +926,12 @@ export component AppWindow inherits Window {
                                             }
 
                                             VerticalLayout {
-                                                width: 92px;
+                                                width: 106px;
                                                 alignment: center;
                                                 CompactActionButton {
                                                     text: "ENTREGAR";
+                                                    icon: @image-url("icons/check.svg");
+                                                    has-icon: true;
                                                     positive: true;
                                                     clicked => { root.deliver-package(idx); }
                                                 }
@@ -877,7 +965,12 @@ export component AppWindow inherits Window {
                         spacing: 10px;
 
                         HorizontalLayout {
-                            alignment: space-between;
+                            spacing: 6px;
+                            alignment: start;
+                            VerticalLayout {
+                                alignment: center;
+                                Image { source: @image-url("icons/building-2.svg"); width: 14px; height: 14px; colorize: #71717a; }
+                            }
                             Text {
                                 text: "TORRES / BLOQUES";
                                 color: #71717a;
@@ -939,6 +1032,8 @@ export component AppWindow inherits Window {
 
                         TacticalButton {
                             text: "NUEVA TORRE / BLOQUE";
+                            icon: @image-url("icons/plus.svg");
+                            has-icon: true;
                             h-stretch: 1;
                             clicked => {
                                 root.status-text = "Iniciando creación de nueva torre...";
@@ -958,6 +1053,8 @@ export component AppWindow inherits Window {
 
                         TacticalButton {
                             text: "CREAR PARQUEADERO";
+                            icon: @image-url("icons/car.svg");
+                            has-icon: true;
                             h-stretch: 1;
                             clicked => {
                                 root.show-parking-modal = true;
@@ -1000,6 +1097,8 @@ export component AppWindow inherits Window {
 
                             TacticalButton {
                                 text: "NUEVO INMUEBLE";
+                                icon: @image-url("icons/plus.svg");
+                                has-icon: true;
                                 primary: true;
                                 clicked => {
                                     root.open-drawer();
@@ -1120,8 +1219,6 @@ export component AppWindow inherits Window {
                     }
                 }
             }
-                }
-            }
 
             // 4. FOOTER TÁCTICO INFERIOR
             HorizontalLayout {
@@ -1138,6 +1235,7 @@ export component AppWindow inherits Window {
                     font-size: 11px;
                     font-weight: 700;
                 }
+            }
             }
         }
     }
@@ -1214,13 +1312,11 @@ export component AppWindow inherits Window {
                                 clicked => { root.cancel-drawer(); }
                             }
 
-                            Text {
-                                text: "✕";
-                                color: #a1a1aa;
-                                font-size: 14px;
-                                font-weight: 800;
-                                horizontal-alignment: center;
-                                vertical-alignment: center;
+                            Image {
+                                source: @image-url("icons/x.svg");
+                                width: 16px;
+                                height: 16px;
+                                colorize: close-touch.has-hover ? #ffffff : #a1a1aa;
                             }
                         }
                     }
@@ -1384,6 +1480,8 @@ export component AppWindow inherits Window {
                         // Botón para abrir el panel de asignación
                         TacticalButton {
                             text: "ASIGNAR PARQUEADERO";
+                            icon: @image-url("icons/plus.svg");
+                            has-icon: true;
                             h-stretch: 1;
                             font-size: 12px;
                             active: root.show-parking-picker;
@@ -1403,6 +1501,8 @@ export component AppWindow inherits Window {
 
                         TacticalButton {
                             text: "GUARDAR INMUEBLE";
+                            icon: @image-url("icons/check.svg");
+                            has-icon: true;
                             primary: true;
                             h-stretch: 1;
                             font-size: 13px;
@@ -1413,6 +1513,8 @@ export component AppWindow inherits Window {
 
                         TacticalButton {
                             text: "CANCELAR [ESC]";
+                            icon: @image-url("icons/x.svg");
+                            has-icon: true;
                             h-stretch: 1;
                             font-size: 12px;
                             clicked => {
@@ -1471,13 +1573,11 @@ export component AppWindow inherits Window {
                                     clicked => { root.close-parking-picker(); }
                                 }
 
-                                Text {
-                                    text: "✕";
-                                    color: #a1a1aa;
-                                    font-size: 13px;
-                                    font-weight: 800;
-                                    horizontal-alignment: center;
-                                    vertical-alignment: center;
+                                Image {
+                                    source: @image-url("icons/x.svg");
+                                    width: 14px;
+                                    height: 14px;
+                                    colorize: picker-close-touch.has-hover ? #ffffff : #a1a1aa;
                                 }
                             }
                         }
@@ -1488,11 +1588,20 @@ export component AppWindow inherits Window {
                         VerticalLayout {
                             vertical-stretch: 0;
                             spacing: 4px;
-                            Text {
-                                text: "BUSCADOR DE CELDAS:";
-                                color: #38bdf8;
-                                font-size: 10px;
-                                font-weight: 800;
+                            HorizontalLayout {
+                                spacing: 5px;
+                                alignment: start;
+                                VerticalLayout {
+                                    alignment: center;
+                                    Image { source: @image-url("icons/search.svg"); width: 12px; height: 12px; colorize: #38bdf8; }
+                                }
+                                Text {
+                                    text: "BUSCADOR DE CELDAS:";
+                                    color: #38bdf8;
+                                    font-size: 10px;
+                                    font-weight: 800;
+                                    vertical-alignment: center;
+                                }
                             }
                             LineEdit {
                                 height: 36px;
@@ -1558,6 +1667,15 @@ export component AppWindow inherits Window {
 
                                         HorizontalLayout {
                                             spacing: 10px;
+                                            VerticalLayout {
+                                                alignment: center;
+                                                Image {
+                                                    source: item.spot-type == "Moto" ? @image-url("icons/bike.svg") : @image-url("icons/car.svg");
+                                                    width: 15px;
+                                                    height: 15px;
+                                                    colorize: item.spot-type == "Moto" ? #d8b4fe : #7dd3fc;
+                                                }
+                                            }
                                             Text {
                                                 text: item.code;
                                                 color: #ffffff;
@@ -1599,6 +1717,8 @@ export component AppWindow inherits Window {
 
                         TacticalButton {
                             text: "CERRAR LISTA [ESC]";
+                            icon: @image-url("icons/x.svg");
+                            has-icon: true;
                             h-stretch: 1;
                             font-size: 11px;
                             clicked => {
@@ -1679,13 +1799,11 @@ export component AppWindow inherits Window {
                                 clicked => { root.show-parking-modal = false; }
                             }
 
-                            Text {
-                                text: "✕";
-                                color: #a1a1aa;
-                                font-size: 14px;
-                                font-weight: 800;
-                                horizontal-alignment: center;
-                                vertical-alignment: center;
+                            Image {
+                                source: @image-url("icons/x.svg");
+                                width: 16px;
+                                height: 16px;
+                                colorize: close-pk-touch.has-hover ? #ffffff : #a1a1aa;
                             }
                         }
                     }
@@ -1718,12 +1836,16 @@ export component AppWindow inherits Window {
                                 spacing: 8px;
                                 TacticalButton {
                                     text: "CARRO";
+                                    icon: @image-url("icons/car.svg");
+                                    has-icon: true;
                                     h-stretch: 1;
                                     active: root.form-parking-type == "Carro";
                                     clicked => { root.form-parking-type = "Carro"; }
                                 }
                                 TacticalButton {
                                     text: "MOTO";
+                                    icon: @image-url("icons/bike.svg");
+                                    has-icon: true;
                                     h-stretch: 1;
                                     active: root.form-parking-type == "Moto";
                                     clicked => { root.form-parking-type = "Moto"; }
@@ -1742,6 +1864,8 @@ export component AppWindow inherits Window {
 
                         TacticalButton {
                             text: "GUARDAR PARQUEADERO";
+                            icon: @image-url("icons/check.svg");
+                            has-icon: true;
                             primary: true;
                             h-stretch: 1;
                             font-size: 13px;
@@ -1752,6 +1876,8 @@ export component AppWindow inherits Window {
 
                         TacticalButton {
                             text: "CANCELAR [ESC]";
+                            icon: @image-url("icons/x.svg");
+                            has-icon: true;
                             h-stretch: 1;
                             font-size: 12px;
                             clicked => {
