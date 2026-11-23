@@ -2,14 +2,44 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-/// Estado de un paquete o encomienda recibida en portería
+// ============================================================================
+// 1. GESTIÓN DE ESTRUCTURA FÍSICA Y UNIDADES RESIDENCIALES (FLP-01)
+// ============================================================================
+
+/// Tipo de inmueble en la unidad residencial
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub enum PackageStatus {
-    ReceivedAtGate, // Recibido en portería
-    ResidentNotified, // Residente notificado
-    DeliveredToResident, // Entregado al residente
-    ReturnedToCourier, // Devuelto a la empresa de mensajería
+pub enum UnitType {
+    Apartment,  // Apartamento
+    House,      // Casa
+    Commercial, // Local comercial
+    Office,     // Oficina / Administración
 }
+
+/// Torre, bloque o manzana dentro de la copropiedad
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TowerBlock {
+    pub id: Uuid,
+    pub name: String, // ej: "Torre 1", "Bloque A", "Manzana 3"
+    pub description: Option<String>,
+}
+
+/// Información completa de un predio o inmueble en la unidad residencial
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResidentialUnit {
+    pub id: Uuid,
+    pub tower_id: Uuid,
+    pub unit_number: String,               // ej: "302", "Casa 14"
+    pub unit_type: UnitType,
+    pub intercom_extension: Option<String>, // Número de citófono / extensión física
+    pub mobile_phone: Option<String>,       // Teléfono celular (prioritario si no hay citófono)
+    pub landline_phone: Option<String>,     // Teléfono fijo (opcional)
+    pub private_parking_spots: Vec<String>, // Lista de celdas privadas asignadas (ej: ["P-101", "M-02"])
+    pub is_active: bool,
+}
+
+// ============================================================================
+// 2. CONTROL DE ACCESOS Y ESTADOS
+// ============================================================================
 
 /// Estado de una autorización de acceso para visitantes
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -30,22 +60,13 @@ pub enum VehicleType {
     VanTruck,
 }
 
-/// Información básica de una unidad residencial / predio (apartamento / casa)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ResidentialUnit {
-    pub id: Uuid,
-    pub block_or_tower: String, // Torre o Bloque
-    pub unit_number: String,    // Número de apto o casa
-    pub primary_phone: String,  // Teléfono principal / citófono
-}
-
 /// Información básica de un visitante
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Visitor {
     pub id: Uuid,
-    pub national_id: String,    // Documento de identidad / Cédula
-    pub full_name: String,      // Nombre completo
-    pub company: Option<String>,// Empresa / Contratista (si aplica)
+    pub national_id: String,     // Documento de identidad / Cédula
+    pub full_name: String,       // Nombre completo
+    pub company: Option<String>, // Empresa / Contratista (si aplica)
 }
 
 /// Registro de entrada o salida de persona o vehículo
@@ -60,6 +81,19 @@ pub struct AccessLog {
     pub entry_time: DateTime<Utc>,
     pub exit_time: Option<DateTime<Utc>>,
     pub guard_notes: Option<String>,
+}
+
+// ============================================================================
+// 3. GESTIÓN DE PAQUETERÍA
+// ============================================================================
+
+/// Estado de un paquete o encomienda recibida en portería
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum PackageStatus {
+    ReceivedAtGate,      // Recibido en portería
+    ResidentNotified,    // Residente notificado
+    DeliveredToResident, // Entregado al residente
+    ReturnedToCourier,   // Devuelto a la empresa de mensajería
 }
 
 /// Paquete o encomienda entregada en portería
