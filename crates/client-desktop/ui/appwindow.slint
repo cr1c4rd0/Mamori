@@ -1,127 +1,505 @@
-import { Button, VerticalBox, HorizontalBox, LineEdit } from "std-widgets.slint";
+import { LineEdit, ScrollView } from "std-widgets.slint";
 
+// ============================================================================
+// COMPONENTES TÁCTICOS CON ESTILO NEGRO PURO (TRUE BLACK)
+// ============================================================================
+
+component TacticalButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> active: false;
+    in property <bool> primary: false;
+    in property <length> font-size: 13px;
+    callback clicked;
+
+    height: 38px;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: root.active ? #38bdf8 : (root.primary ? #22c55e : (touch.has-hover ? #3f3f46 : #27272a));
+    background: root.active ? #0c4a6e : (root.primary ? #14532d : (touch.has-hover ? #18181b : #09090b));
+
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    Text {
+        text: root.text;
+        color: root.active ? #ffffff : (root.primary ? #4ade80 : (touch.has-hover ? #fafafa : #a1a1aa));
+        font-size: root.font-size;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+// Estructuras de datos para Slint
+export struct UnitItem {
+    id: string,
+    tower: string,
+    unit_number: string,
+    unit_type: string,
+    intercom: string,
+    mobile: string,
+    landline: string,
+    parking: string,
+}
+
+export struct TowerItem {
+    id: string,
+    name: string,
+    unit_count: int,
+}
+
+// ============================================================================
+// VENTANA PRINCIPAL — MAMORI TACTICAL BLACK EDITION
+// ============================================================================
 export component AppWindow inherits Window {
-    title: "Mamori — Terminal de Seguridad y Control de Acceso (Windows Nativo)";
-    preferred-width: 1024px;
-    preferred-height: 720px;
-    min-width: 800px;
-    min-height: 600px;
-    background: #0f172a; // Slate 900 (Fondo oscuro de alto contraste para garita)
+    title: "MAMORI — Terminal de Portería (Black Edition)";
+    preferred-width: 1150px;
+    preferred-height: 760px;
+    min-width: 950px;
+    min-height: 680px;
+    background: #000000; // NEGRO PURO (TRUE BLACK)
 
-    in-out property <string> active-module: "visitas";
-    in-out property <string> status-text: "Sistema Conectado | Modo Garita Activo";
+    in-out property <string> active-module: "unidades";
+    in-out property <string> status-text: "SISTEMA OPERATIVO | BASE DE DATOS LOCAL SINCRONIZADA";
+    in-out property <string> selected-tower: "Torre 1";
+    in-out property <bool> show-form: false;
+
+    // Campos del formulario
+    in-out property <string> form-unit-number: "";
+    in-out property <string> form-unit-type: "Apartamento";
+    in-out property <string> form-intercom: "";
+    in-out property <string> form-mobile: "";
+    in-out property <string> form-landline: "";
+    in-out property <string> form-parking: "";
+
+    // Listas reactivas
+    in-out property <[TowerItem]> towers: [
+        { id: "t1", name: "Torre 1", unit_count: 24 },
+        { id: "t2", name: "Torre 2", unit_count: 24 },
+        { id: "t3", name: "Bloque Norte", unit_count: 16 },
+        { id: "t4", name: "Manzana A (Casas)", unit_count: 12 },
+    ];
+
+    in-out property <[UnitItem]> units: [
+        { id: "u1", tower: "Torre 1", unit_number: "Apto 101", unit_type: "Apartamento", intercom: "Ext. 101", mobile: "300 123 4567", landline: "(604) 444 0001", parking: "P-101" },
+        { id: "u2", tower: "Torre 1", unit_number: "Apto 102", unit_type: "Apartamento", intercom: "Sin citófono", mobile: "315 987 6543", landline: "—", parking: "P-102, P-102B" },
+        { id: "u3", tower: "Torre 1", unit_number: "Apto 103", unit_type: "Apartamento", intercom: "Ext. 103", mobile: "311 555 8899", landline: "—", parking: "Sin celda" },
+        { id: "u4", tower: "Torre 1", unit_number: "Apto 201", unit_type: "Apartamento", intercom: "Ext. 201", mobile: "310 444 3322", landline: "(604) 444 0004", parking: "P-201" },
+        { id: "u5", tower: "Torre 1", unit_number: "Apto 202", unit_type: "Apartamento", intercom: "Ext. 202", mobile: "318 777 6655", landline: "—", parking: "P-202" },
+        { id: "u6", tower: "Torre 1", unit_number: "Apto 203", unit_type: "Apartamento", intercom: "Sin citófono", mobile: "301 222 1100", landline: "—", parking: "P-203" },
+    ];
 
     callback quick-action(string);
+    callback select-tower(string);
+    callback save-unit();
+    callback toggle-form(bool);
 
-    VerticalBox {
-        padding: 16px;
+    VerticalLayout {
+        padding: 14px;
         spacing: 12px;
 
-        // HEADER TÁCTICO DE PORTERÍA
+        // ====================================================================
+        // 1. HEADER NEGRO PURO CON ACENTO NEÓN
+        // ====================================================================
         Rectangle {
-            height: 64px;
-            background: #1e293b;
+            height: 58px;
+            background: #09090b; // Casi negro
             border-radius: 8px;
+            border-width: 1px;
+            border-color: #18181b;
 
-            HorizontalBox {
-                padding-left: 20px;
-                padding-right: 20px;
+            HorizontalLayout {
+                padding-left: 18px;
+                padding-right: 18px;
                 alignment: space-between;
 
-                Text {
-                    text: "🛡️ MAMORI | Terminal de Portería";
-                    color: #38bdf8;
-                    font-size: 20px;
-                    font-weight: 700;
-                    vertical-alignment: center;
+                HorizontalLayout {
+                    spacing: 12px;
+                    Text {
+                        text: "🛡️ MAMORI";
+                        color: #ffffff;
+                        font-size: 20px;
+                        font-weight: 900;
+                        vertical-alignment: center;
+                    }
+                    Text {
+                        text: "|  CONTROL DE ACCESO Y SEGURIDAD RESIDENCIAL";
+                        color: #52525b;
+                        font-size: 13px;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
                 }
 
-                Text {
-                    text: root.status-text;
-                    color: #4ade80;
-                    font-size: 14px;
-                    font-weight: 600;
-                    vertical-alignment: center;
+                HorizontalLayout {
+                    spacing: 10px;
+                    Rectangle {
+                        width: 8px;
+                        height: 8px;
+                        border-radius: 4px;
+                        background: #22c55e;
+                        y: 17px;
+                    }
+                    Text {
+                        text: root.status-text;
+                        color: #a1a1aa;
+                        font-size: 12px;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
                 }
             }
         }
 
-        // BARRA DE ATAJOS RÁPIDOS DE TECLADO (F1 - F5)
+        // ====================================================================
+        // 2. BARRA DE ATAJOS DE TECLADO (F1 - F5) ESTILO TÁCTICO
+        // ====================================================================
         Rectangle {
-            height: 52px;
-            background: #1e293b;
+            height: 48px;
+            background: #09090b;
             border-radius: 8px;
+            border-width: 1px;
+            border-color: #18181b;
 
-            HorizontalBox {
-                padding: 8px;
-                spacing: 12px;
+            HorizontalLayout {
+                padding: 5px;
+                spacing: 8px;
 
-                Button {
-                    text: "[F1] Registrar Visita";
+                TacticalButton {
+                    text: "[F1] VISITAS";
+                    active: root.active-module == "visita";
                     clicked => { root.quick-action("visita"); }
                 }
-
-                Button {
-                    text: "[F2] Control Vehicular";
+                TacticalButton {
+                    text: "[F2] VEHÍCULOS";
+                    active: root.active-module == "vehiculo";
                     clicked => { root.quick-action("vehiculo"); }
                 }
-
-                Button {
-                    text: "[F3] Paquetería";
+                TacticalButton {
+                    text: "[F3] PAQUETERÍA";
+                    active: root.active-module == "paquete";
                     clicked => { root.quick-action("paquete"); }
                 }
-
-                Button {
-                    text: "[F4] Unidades & Predios";
+                TacticalButton {
+                    text: "[F4] UNIDADES & PREDIOS";
+                    active: root.active-module == "unidades";
                     clicked => { root.quick-action("unidades"); }
                 }
-
-                Button {
-                    text: "[F5] Minuta & Novedades";
+                TacticalButton {
+                    text: "[F5] MINUTA & NOVEDADES";
+                    active: root.active-module == "minuta";
                     clicked => { root.quick-action("minuta"); }
                 }
             }
         }
 
-        // ÁREA PRINCIPAL DE CONTENIDO
-        Rectangle {
-            background: #1e293b;
-            border-radius: 8px;
+        // ====================================================================
+        // 3. CUERPO PRINCIPAL: GESTIÓN DE UNIDADES (NEGRO PROFUNDO)
+        // ====================================================================
+        HorizontalLayout {
+            spacing: 12px;
 
-            VerticalBox {
-                padding: 24px;
-                alignment: center;
-                spacing: 16px;
+            // ----------------------------------------------------------------
+            // PANEL IZQUIERDO: TORRES Y BLOQUES
+            // ----------------------------------------------------------------
+            Rectangle {
+                width: 260px;
+                background: #09090b;
+                border-radius: 8px;
+                border-width: 1px;
+                border-color: #18181b;
 
-                Text {
-                    text: "Módulo Activo: " + root.active-module;
-                    color: #f8fafc;
-                    font-size: 18px;
-                    font-weight: 600;
-                    horizontal-alignment: center;
+                VerticalLayout {
+                    padding: 14px;
+                    spacing: 10px;
+
+                    HorizontalLayout {
+                        alignment: space-between;
+                        Text {
+                            text: "TORRES / BLOQUES";
+                            color: #71717a;
+                            font-size: 12px;
+                            font-weight: 800;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: #18181b; }
+
+                    // Lista de Torres en Negro con Selección Blanca/Azul
+                    for tower in root.towers: Rectangle {
+                        height: 48px;
+                        border-radius: 6px;
+                        border-width: 1px;
+                        border-color: root.selected-tower == tower.name ? #38bdf8 : #18181b;
+                        background: root.selected-tower == tower.name ? #111827 : (tower-touch.has-hover ? #141417 : #050507);
+
+                        tower-touch := TouchArea {
+                            clicked => {
+                                root.selected-tower = tower.name;
+                                root.select-tower(tower.name);
+                            }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 14px;
+                            padding-right: 14px;
+                            alignment: space-between;
+
+                            Text {
+                                text: tower.name;
+                                color: root.selected-tower == tower.name ? #38bdf8 : #f4f4f5;
+                                font-size: 14px;
+                                font-weight: 700;
+                                vertical-alignment: center;
+                            }
+
+                            Rectangle {
+                                width: 68px;
+                                height: 22px;
+                                border-radius: 11px;
+                                background: #18181b;
+                                y: 13px;
+
+                                Text {
+                                    text: tower.unit_count + " aptos";
+                                    color: #a1a1aa;
+                                    font-size: 11px;
+                                    font-weight: 600;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 10px; }
+
+                    TacticalButton {
+                        text: "+ NUEVA TORRE / BLOQUE";
+                        clicked => {
+                            root.status-text = "Iniciando creación de nueva torre...";
+                        }
+                    }
                 }
+            }
 
-                Text {
-                    text: "Aplicación 100% Nativa en Rust con Slint (Cero Navegador / Cero HTML).";
-                    color: #94a3b8;
-                    font-size: 14px;
-                    horizontal-alignment: center;
+            // ----------------------------------------------------------------
+            // PANEL DERECHO: INMUEBLES EN LA TORRE SELECCIONADA
+            // ----------------------------------------------------------------
+            Rectangle {
+                background: #09090b;
+                border-radius: 8px;
+                border-width: 1px;
+                border-color: #18181b;
+
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+
+                    // Cabecera superior del panel de inmuebles
+                    HorizontalLayout {
+                        alignment: space-between;
+
+                        HorizontalLayout {
+                            spacing: 12px;
+                            Text {
+                                text: root.selected-tower;
+                                color: #ffffff;
+                                font-size: 18px;
+                                font-weight: 800;
+                                vertical-alignment: center;
+                            }
+                            Text {
+                                text: "•  Directorio de Inmuebles Registrados";
+                                color: #71717a;
+                                font-size: 13px;
+                                font-weight: 600;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            TacticalButton {
+                                text: root.show-form ? "CERRAR FORMULARIO [ESC]" : "+ NUEVO INMUEBLE [INS]";
+                                primary: !root.show-form;
+                                active: root.show-form;
+                                clicked => {
+                                    root.show-form = !root.show-form;
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: #18181b; }
+
+                    // --------------------------------------------------------
+                    // FORMULARIO CONDICIONAL DE CREACIÓN DE INMUEBLE
+                    // --------------------------------------------------------
+                    if (root.show-form): Rectangle {
+                        background: #050507;
+                        border-radius: 8px;
+                        border-width: 1px;
+                        border-color: #27272a;
+
+                        VerticalLayout {
+                            padding: 14px;
+                            spacing: 10px;
+
+                            Text {
+                                text: "REGISTRAR NUEVO PREDIO EN " + root.selected-tower;
+                                color: #38bdf8;
+                                font-size: 13px;
+                                font-weight: 800;
+                            }
+
+                            HorizontalLayout {
+                                spacing: 10px;
+                                VerticalLayout {
+                                    spacing: 4px;
+                                    Text { text: "N° Inmueble (ej: 301):"; color: #a1a1aa; font-size: 11px; font-weight: 700; }
+                                    LineEdit { text <=> root.form-unit-number; placeholder-text: "Ej: 301"; }
+                                }
+                                VerticalLayout {
+                                    spacing: 4px;
+                                    Text { text: "Citófono / Extensión:"; color: #a1a1aa; font-size: 11px; font-weight: 700; }
+                                    LineEdit { text <=> root.form-intercom; placeholder-text: "Ext. 301 o 'Sin citófono'"; }
+                                }
+                                VerticalLayout {
+                                    spacing: 4px;
+                                    Text { text: "Celular Principal (Garita):"; color: #a1a1aa; font-size: 11px; font-weight: 700; }
+                                    LineEdit { text <=> root.form-mobile; placeholder-text: "300 000 0000"; }
+                                }
+                            }
+
+                            HorizontalLayout {
+                                spacing: 10px;
+                                VerticalLayout {
+                                    spacing: 4px;
+                                    Text { text: "Teléfono Fijo (Opcional):"; color: #a1a1aa; font-size: 11px; font-weight: 700; }
+                                    LineEdit { text <=> root.form-landline; placeholder-text: "(604) 000 0000"; }
+                                }
+                                VerticalLayout {
+                                    spacing: 4px;
+                                    Text { text: "Parqueaderos Privados:"; color: #a1a1aa; font-size: 11px; font-weight: 700; }
+                                    LineEdit { text <=> root.form-parking; placeholder-text: "Ej: P-301, Celda M-02"; }
+                                }
+                            }
+
+                            HorizontalLayout {
+                                alignment: end;
+                                spacing: 10px;
+                                TacticalButton {
+                                    text: "CANCELAR";
+                                    clicked => { root.show-form = false; }
+                                }
+                                TacticalButton {
+                                    text: "💾 GUARDAR INMUEBLE";
+                                    primary: true;
+                                    clicked => { root.save-unit(); }
+                                }
+                            }
+                        }
+                    }
+
+                    // --------------------------------------------------------
+                    // TABLA DE INMUEBLES EN NEGRO PURO
+                    // --------------------------------------------------------
+                    VerticalLayout {
+                        spacing: 3px;
+
+                        // Cabecera de la Tabla
+                        Rectangle {
+                            height: 36px;
+                            background: #000000;
+                            border-radius: 4px;
+                            border-width: 1px;
+                            border-color: #18181b;
+
+                            HorizontalLayout {
+                                padding-left: 14px;
+                                padding-right: 14px;
+
+                                Text { text: "INMUEBLE"; width: 110px; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                                Text { text: "TIPO"; width: 120px; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                                Text { text: "CITÓFONO / EXT."; width: 140px; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                                Text { text: "CELULAR GARITA"; width: 140px; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                                Text { text: "TEL. FIJO"; width: 120px; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                                Text { text: "PARQUEADEROS PRIVADOS"; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                            }
+                        }
+
+                        // Filas de Inmuebles con fondo negro y bordes sutiles
+                        for unit in root.units: Rectangle {
+                            height: 42px;
+                            background: #050507;
+                            border-radius: 4px;
+                            border-width: 1px;
+                            border-color: #141417;
+
+                            HorizontalLayout {
+                                padding-left: 14px;
+                                padding-right: 14px;
+
+                                Text { text: unit.unit-number; width: 110px; color: #ffffff; font-size: 13px; font-weight: 800; vertical-alignment: center; }
+                                Text { text: unit.unit-type; width: 120px; color: #a1a1aa; font-size: 13px; vertical-alignment: center; }
+                                
+                                // Indicador de citófono (Verde si tiene, Rojo si carece)
+                                HorizontalLayout {
+                                    width: 140px;
+                                    spacing: 6px;
+                                    Rectangle {
+                                        width: 6px;
+                                        height: 6px;
+                                        border-radius: 3px;
+                                        background: unit.intercom == "Sin citófono" ? #ef4444 : #22c55e;
+                                        y: 18px;
+                                    }
+                                    Text {
+                                        text: unit.intercom;
+                                        color: unit.intercom == "Sin citófono" ? #f87171 : #4ade80;
+                                        font-size: 12px;
+                                        font-weight: 700;
+                                        vertical-alignment: center;
+                                    }
+                                }
+
+                                Text { text: unit.mobile; width: 140px; color: #e4e4e7; font-size: 13px; font-weight: 600; vertical-alignment: center; }
+                                Text { text: unit.landline; width: 120px; color: #71717a; font-size: 13px; vertical-alignment: center; }
+                                
+                                // Parqueadero privado en azul cian táctico
+                                Text {
+                                    text: unit.parking;
+                                    color: unit.parking == "Sin celda" ? #52525b : #38bdf8;
+                                    font-size: 13px;
+                                    font-weight: 700;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        // FOOTER / STATUS BAR
-        HorizontalBox {
+        // ====================================================================
+        // 4. FOOTER TÁCTICO INFERIOR (NEGRO PURO)
+        // ====================================================================
+        HorizontalLayout {
             alignment: space-between;
             Text {
-                text: "Presione [F1..F5] para cambiar de módulo | [Esc] Salir";
-                color: #64748b;
-                font-size: 12px;
+                text: "ATAJOS: [F4] UNIDADES | [INS] AGREGAR PREDIO | [ESC] CERRAR | CLIC EN TORRE PARA FILTRAR";
+                color: #52525b;
+                font-size: 11px;
+                font-weight: 700;
             }
             Text {
-                text: "Mamori v0.1.0 — Compilado Nativo en Rust";
-                color: #64748b;
-                font-size: 12px;
+                text: "MAMORI v0.1.0 — TRUE BLACK EDITION (SLINT / RUST)";
+                color: #52525b;
+                font-size: 11px;
+                font-weight: 700;
             }
         }
     }
