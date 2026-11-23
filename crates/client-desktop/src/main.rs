@@ -126,6 +126,80 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let units_model = Rc::new(VecModel::from(initial_units));
     ui.set_units(units_model.clone().into());
 
+    // Modelo reactivo: Visitas actualmente dentro de la unidad (Dashboard Home)
+    let active_visits_model = Rc::new(VecModel::from(vec![
+        ActiveVisitItem {
+            id: "v1".into(),
+            visitor_name: "Carlos Andrés Ramírez".into(),
+            document: "CC 1.017.234.567".into(),
+            destination: "Torre 1 - Apto 101".into(),
+            entry_time: "16:45".into(),
+            access_type: "Vehicular (KLM-482)".into(),
+        },
+        ActiveVisitItem {
+            id: "v2".into(),
+            visitor_name: "Laura Sofía Mendoza".into(),
+            document: "CC 1.036.890.112".into(),
+            destination: "Torre 1 - Apto 202".into(),
+            entry_time: "17:02".into(),
+            access_type: "Peatonal".into(),
+        },
+        ActiveVisitItem {
+            id: "v3".into(),
+            visitor_name: "Jorge Eliécer Ospina (Técnico)".into(),
+            document: "CC 71.543.210".into(),
+            destination: "Torre 2 - Apto 405".into(),
+            entry_time: "17:15".into(),
+            access_type: "Peatonal".into(),
+        },
+        ActiveVisitItem {
+            id: "v4".into(),
+            visitor_name: "Diana Patricia Gómez".into(),
+            document: "CC 43.912.654".into(),
+            destination: "Bloque Norte - Apto 301".into(),
+            entry_time: "17:28".into(),
+            access_type: "Vehicular (FTR-910)".into(),
+        },
+    ]));
+    ui.set_active_visits(active_visits_model.clone().into());
+
+    // Modelo reactivo: Paquetería pendiente por entregar (Dashboard Home)
+    let pending_packages_model = Rc::new(VecModel::from(vec![
+        PendingPackageItem {
+            id: "pk1".into(),
+            destination: "Torre 1 - Apto 102".into(),
+            recipient: "Mateo Restrepo".into(),
+            carrier: "Mercado Libre".into(),
+            description: "Caja mediana • Guía ML-8841".into(),
+            received_time: "14:20".into(),
+        },
+        PendingPackageItem {
+            id: "pk2".into(),
+            destination: "Torre 1 - Apto 201".into(),
+            recipient: "Ana María Salazar".into(),
+            carrier: "Amazon".into(),
+            description: "Sobre acolchado • Prioritario".into(),
+            received_time: "15:05".into(),
+        },
+        PendingPackageItem {
+            id: "pk3".into(),
+            destination: "Torre 2 - Apto 104".into(),
+            recipient: "Felipe Londoño".into(),
+            carrier: "Servientrega".into(),
+            description: "Paquete frágil • Guía SV-3390".into(),
+            received_time: "16:10".into(),
+        },
+        PendingPackageItem {
+            id: "pk4".into(),
+            destination: "Manzana A - Casa 12".into(),
+            recipient: "Carolina Vélez".into(),
+            carrier: "Coordinadora".into(),
+            description: "Caja grande • Casillero B2".into(),
+            received_time: "17:18".into(),
+        },
+    ]));
+    ui.set_pending_packages(pending_packages_model.clone().into());
+
     // Catálogo maestro de parqueaderos disponibles en la copropiedad (no asignados a otros predios)
     let master_parking_catalog = Rc::new(RefCell::new(vec![
         "P-104 (Carro)".to_string(),
@@ -161,6 +235,60 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(ui) = ui_handle.upgrade() {
                 tracing::info!("Torre seleccionada: {}", tower_name);
                 ui.set_status_text(format!("Visualizando predios de: {}", tower_name).into());
+            }
+        }
+    });
+
+    // Callback Dashboard Home: Registrar salida de visita activa
+    let visits_exit_model = active_visits_model.clone();
+    ui.on_register_visit_exit({
+        let ui_handle = ui.as_weak();
+        let model = visits_exit_model.clone();
+        move |idx| {
+            if idx >= 0 && (idx as usize) < model.row_count() {
+                let removed = model.row_data(idx as usize);
+                let mut remaining = Vec::new();
+                for i in 0..model.row_count() {
+                    if i != (idx as usize) {
+                        if let Some(item) = model.row_data(i) {
+                            remaining.push(item);
+                        }
+                    }
+                }
+                model.set_vec(remaining);
+                if let (Some(ui), Some(visit)) = (ui_handle.upgrade(), removed) {
+                    tracing::info!("Salida registrada: {} ({})", visit.visitor_name, visit.destination);
+                    ui.set_status_text(
+                        format!("Salida registrada: {} ({})", visit.visitor_name, visit.destination).into(),
+                    );
+                }
+            }
+        }
+    });
+
+    // Callback Dashboard Home: Marcar paquete como entregado
+    let pkgs_deliver_model = pending_packages_model.clone();
+    ui.on_deliver_package({
+        let ui_handle = ui.as_weak();
+        let model = pkgs_deliver_model.clone();
+        move |idx| {
+            if idx >= 0 && (idx as usize) < model.row_count() {
+                let removed = model.row_data(idx as usize);
+                let mut remaining = Vec::new();
+                for i in 0..model.row_count() {
+                    if i != (idx as usize) {
+                        if let Some(item) = model.row_data(i) {
+                            remaining.push(item);
+                        }
+                    }
+                }
+                model.set_vec(remaining);
+                if let (Some(ui), Some(pkg)) = (ui_handle.upgrade(), removed) {
+                    tracing::info!("Paquete entregado: {} -> {}", pkg.carrier, pkg.destination);
+                    ui.set_status_text(
+                        format!("Paquete de {} entregado a {} ({}).", pkg.carrier, pkg.destination, pkg.recipient).into(),
+                    );
+                }
             }
         }
     });
@@ -299,13 +427,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         master.borrow_mut().push(formatted.clone());
                     }
 
-                    // Auto-asignar a la lista del inmueble
-                    let already_added = (0..sel_model.row_count()).any(|i| sel_model.row_data(i) == Some(shared_str.clone()));
-                    if !already_added {
-                        sel_model.push(shared_str);
+                    // Si se abrió desde el panel de Nuevo Inmueble, auto-asignar al predio actual
+                    if ui.get_show_drawer() {
+                        let already_added = (0..sel_model.row_count()).any(|i| sel_model.row_data(i) == Some(shared_str.clone()));
+                        if !already_added {
+                            sel_model.push(shared_str);
+                        }
+                        ui.set_status_text(format!("Parqueadero {} creado y asignado al inmueble.", code).into());
+                    } else {
+                        ui.set_status_text(format!("Parqueadero {} creado en el catálogo disponible.", code).into());
                     }
 
-                    ui.set_status_text(format!("Parqueadero {} creado y asignado al inmueble.", code).into());
                     ui.set_form_parking_code("".into());
                     ui.set_show_parking_modal(false);
                 }

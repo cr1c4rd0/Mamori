@@ -44,9 +44,9 @@ component TacticalButton inherits Rectangle {
 component DeleteButton inherits Rectangle {
     callback clicked;
 
-    width: 90px;
-    height: 34px;
-    border-radius: 6px;
+    width: 72px;
+    height: 24px;
+    border-radius: 4px;
     border-width: 1px;
     border-color: del-touch.has-hover ? #ef4444 : #3f1515;
     background: del-touch.has-hover ? #450a0a : #180909;
@@ -60,14 +60,123 @@ component DeleteButton inherits Rectangle {
         Text {
             text: "ELIMINAR";
             color: del-touch.has-hover ? #ffffff : #f87171;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 800;
             vertical-alignment: center;
         }
     }
 }
 
+// Botón de acción compacto para filas del dashboard (Dar salida / Entregar)
+component CompactActionButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> positive: false;
+    callback clicked;
+
+    height: 26px;
+    min-width: txt.min-width + 18px;
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: root.positive
+        ? (btn-touch.has-hover ? #22c55e : #14532d)
+        : (btn-touch.has-hover ? #38bdf8 : #1e3a5f);
+    background: root.positive
+        ? (btn-touch.has-hover ? #14532d : #052e16)
+        : (btn-touch.has-hover ? #0c4a6e : #082f49);
+
+    btn-touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 8px;
+        alignment: center;
+        txt := Text {
+            text: root.text;
+            color: btn-touch.has-hover ? #ffffff : (root.positive ? #4ade80 : #7dd3fc);
+            font-size: 10px;
+            font-weight: 800;
+            vertical-alignment: center;
+        }
+    }
+}
+
+// Ítem de navegación para el panel lateral izquierdo colapsable
+component SidebarNavItem inherits Rectangle {
+    in property <string> shortcut;
+    in property <string> label;
+    in property <bool> active: false;
+    in property <bool> collapsed: false;
+    callback clicked;
+
+    height: 40px;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: root.active ? #38bdf8 : (nav-touch.has-hover ? #3f3f46 : transparent);
+    background: root.active ? #0c4a6e : (nav-touch.has-hover ? #18181b : transparent);
+
+    nav-touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: root.collapsed ? 0px : 10px;
+        padding-right: root.collapsed ? 0px : 10px;
+        spacing: 10px;
+        alignment: root.collapsed ? center : start;
+
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 30px;
+                height: 22px;
+                border-radius: 4px;
+                background: root.active ? #0369a1 : #18181b;
+                border-width: 1px;
+                border-color: root.active ? #38bdf8 : #27272a;
+
+                Text {
+                    text: root.shortcut;
+                    color: root.active ? #ffffff : #a1a1aa;
+                    font-size: 10px;
+                    font-weight: 800;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        if (!root.collapsed): Text {
+            text: root.label;
+            color: root.active ? #ffffff : (nav-touch.has-hover ? #e4e4e7 : #a1a1aa);
+            font-size: 12px;
+            font-weight: 800;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+    }
+}
+
 // Estructuras de datos para Slint
+export struct ActiveVisitItem {
+    id: string,
+    visitor_name: string,
+    document: string,
+    destination: string,
+    entry_time: string,
+    access_type: string,
+}
+
+export struct PendingPackageItem {
+    id: string,
+    destination: string,
+    recipient: string,
+    carrier: string,
+    description: string,
+    received_time: string,
+}
+
 export struct ParkingPickerItem {
     code: string,
     spot_type: string,
@@ -102,8 +211,11 @@ export component AppWindow inherits Window {
     min-height: 700px;
     background: #000000; // NEGRO PURO
 
-    in-out property <string> active-module: "unidades";
+    in-out property <string> active-module: "home";
+    in-out property <bool> sidebar-collapsed: false;
     in-out property <string> status-text: "SISTEMA OPERATIVO | BASE DE DATOS LOCAL SINCRONIZADA";
+    in-out property <[ActiveVisitItem]> active-visits: [];
+    in-out property <[PendingPackageItem]> pending-packages: [];
     in-out property <string> selected-tower: "Torre 1";
     in-out property <bool> show-drawer: false;
     in-out property <bool> show-parking-modal: false;
@@ -158,6 +270,8 @@ export component AppWindow inherits Window {
 
     callback quick-action(string);
     callback select-tower(string);
+    callback register-visit-exit(int);
+    callback deliver-package(int);
     callback open-drawer();
     callback cancel-drawer();
     callback save-unit();
@@ -186,11 +300,12 @@ export component AppWindow inherits Window {
                     return accept;
                 }
             }
-            if (event.text == Key.F1) { root.quick-action("visita"); return accept; }
-            if (event.text == Key.F2) { root.quick-action("vehiculo"); return accept; }
-            if (event.text == Key.F3) { root.quick-action("paquete"); return accept; }
-            if (event.text == Key.F4) { root.quick-action("unidades"); return accept; }
-            if (event.text == Key.F5) { root.quick-action("minuta"); return accept; }
+            if (event.text == Key.F1) { root.quick-action("home"); return accept; }
+            if (event.text == Key.F2) { root.quick-action("visita"); return accept; }
+            if (event.text == Key.F3) { root.quick-action("vehiculo"); return accept; }
+            if (event.text == Key.F4) { root.quick-action("paquete"); return accept; }
+            if (event.text == Key.F5) { root.quick-action("unidades"); return accept; }
+            if (event.text == Key.F6) { root.quick-action("minuta"); return accept; }
             return reject;
         }
 
@@ -252,53 +367,501 @@ export component AppWindow inherits Window {
                 }
             }
 
-            // 2. BARRA DE MÓDULOS CON AUTO-AJUSTE
-            Rectangle {
-                height: 50px;
-                background: #09090b;
-                border-radius: 8px;
-                border-width: 1px;
-                border-color: #18181b;
+            // 2. CUERPO PRINCIPAL: SIDEBAR IZQUIERDO COLAPSABLE + CONTENIDO ACTIVO
+            HorizontalLayout {
+                vertical-stretch: 1;
+                spacing: 12px;
 
+                // PANEL LATERAL IZQUIERDO COLAPSABLE (MENÚ PRINCIPAL)
+                Rectangle {
+                    width: root.sidebar-collapsed ? 64px : 230px;
+                    animate width { duration: 180ms; easing: ease-out; }
+                    clip: true;
+                    background: #09090b;
+                    border-radius: 8px;
+                    border-width: 1px;
+                    border-color: #18181b;
+
+                    VerticalLayout {
+                        padding: 10px;
+                        spacing: 6px;
+
+                        // Cabecera del sidebar con botón de colapso
+                        HorizontalLayout {
+                            height: 32px;
+                            padding-left: root.sidebar-collapsed ? 0px : 6px;
+                            alignment: root.sidebar-collapsed ? center : space-between;
+
+                            if (!root.sidebar-collapsed): Text {
+                                text: "MENÚ PRINCIPAL";
+                                color: #71717a;
+                                font-size: 11px;
+                                font-weight: 800;
+                                vertical-alignment: center;
+                            }
+
+                            Rectangle {
+                                width: 30px;
+                                height: 28px;
+                                border-radius: 6px;
+                                background: toggle-sb-touch.has-hover ? #27272a : #18181b;
+                                border-width: 1px;
+                                border-color: toggle-sb-touch.has-hover ? #38bdf8 : #27272a;
+
+                                toggle-sb-touch := TouchArea {
+                                    clicked => { root.sidebar-collapsed = !root.sidebar-collapsed; }
+                                }
+
+                                Text {
+                                    text: root.sidebar-collapsed ? "»" : "«";
+                                    color: toggle-sb-touch.has-hover ? #ffffff : #a1a1aa;
+                                    font-size: 14px;
+                                    font-weight: 900;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        Rectangle { height: 1px; background: #18181b; }
+
+                        SidebarNavItem {
+                            shortcut: "F1";
+                            label: "HOME";
+                            active: root.active-module == "home";
+                            collapsed: root.sidebar-collapsed;
+                            clicked => { root.quick-action("home"); }
+                        }
+                        SidebarNavItem {
+                            shortcut: "F2";
+                            label: "VISITAS";
+                            active: root.active-module == "visita";
+                            collapsed: root.sidebar-collapsed;
+                            clicked => { root.quick-action("visita"); }
+                        }
+                        SidebarNavItem {
+                            shortcut: "F3";
+                            label: "VEHÍCULOS";
+                            active: root.active-module == "vehiculo";
+                            collapsed: root.sidebar-collapsed;
+                            clicked => { root.quick-action("vehiculo"); }
+                        }
+                        SidebarNavItem {
+                            shortcut: "F4";
+                            label: "PAQUETERÍA";
+                            active: root.active-module == "paquete";
+                            collapsed: root.sidebar-collapsed;
+                            clicked => { root.quick-action("paquete"); }
+                        }
+                        SidebarNavItem {
+                            shortcut: "F5";
+                            label: "UNIDADES & PREDIOS";
+                            active: root.active-module == "unidades";
+                            collapsed: root.sidebar-collapsed;
+                            clicked => { root.quick-action("unidades"); }
+                        }
+                        SidebarNavItem {
+                            shortcut: "F6";
+                            label: "MINUTA & NOVEDADES";
+                            active: root.active-module == "minuta";
+                            collapsed: root.sidebar-collapsed;
+                            clicked => { root.quick-action("minuta"); }
+                        }
+
+                        Rectangle { vertical-stretch: 1; }
+
+                        if (!root.sidebar-collapsed): Rectangle {
+                            height: 1px;
+                            background: #18181b;
+                        }
+                        if (!root.sidebar-collapsed): Text {
+                            text: "MAMORI PORTERÍA";
+                            color: #3f3f46;
+                            font-size: 10px;
+                            font-weight: 800;
+                            horizontal-alignment: center;
+                        }
+                    }
+                }
+
+                // ÁREA DE CONTENIDO ACTIVO
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    vertical-stretch: 1;
+                    spacing: 12px;
+
+                    // ================================================================
+                    // 3A. VISTA HOME: DASHBOARD OPERATIVO DE PORTERÍA
+                    // ================================================================
+                    if (root.active-module == "home"): VerticalLayout {
+                vertical-stretch: 1;
+                spacing: 12px;
+
+                // FILA SUPERIOR: TARJETAS DE RESUMEN OPERATIVO (KPIs)
                 HorizontalLayout {
-                    padding: 6px;
-                    spacing: 8px;
+                    vertical-stretch: 0;
+                    spacing: 12px;
+                    height: 84px;
 
-                    TacticalButton {
-                        text: "[F1] VISITAS";
-                        h-stretch: 1;
-                        active: root.active-module == "visita";
-                        clicked => { root.quick-action("visita"); }
+                    // KPI 1: Visitas dentro de la unidad
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        background: #09090b;
+                        border-radius: 8px;
+                        border-width: 1px;
+                        border-color: #18181b;
+
+                        VerticalLayout {
+                            padding: 14px;
+                            spacing: 4px;
+                            HorizontalLayout {
+                                alignment: space-between;
+                                Text { text: "VISITAS DENTRO DE LA UNIDAD"; color: #71717a; font-size: 11px; font-weight: 800; }
+                                Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #38bdf8; y: 3px; }
+                            }
+                            HorizontalLayout {
+                                spacing: 10px;
+                                alignment: start;
+                                Text { text: root.active-visits.length; color: #ffffff; font-size: 26px; font-weight: 900; vertical-alignment: bottom; }
+                                Text { text: "activas en este momento"; color: #38bdf8; font-size: 11px; font-weight: 600; vertical-alignment: bottom; }
+                            }
+                        }
                     }
-                    TacticalButton {
-                        text: "[F2] VEHÍCULOS";
-                        h-stretch: 1;
-                        active: root.active-module == "vehiculo";
-                        clicked => { root.quick-action("vehiculo"); }
+
+                    // KPI 2: Paquetería pendiente
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        background: #09090b;
+                        border-radius: 8px;
+                        border-width: 1px;
+                        border-color: #18181b;
+
+                        VerticalLayout {
+                            padding: 14px;
+                            spacing: 4px;
+                            HorizontalLayout {
+                                alignment: space-between;
+                                Text { text: "PAQUETERÍA PENDIENTE"; color: #71717a; font-size: 11px; font-weight: 800; }
+                                Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #f59e0b; y: 3px; }
+                            }
+                            HorizontalLayout {
+                                spacing: 10px;
+                                alignment: start;
+                                Text { text: root.pending-packages.length; color: #ffffff; font-size: 26px; font-weight: 900; vertical-alignment: bottom; }
+                                Text { text: "en casillero de portería"; color: #fbbf24; font-size: 11px; font-weight: 600; vertical-alignment: bottom; }
+                            }
+                        }
                     }
-                    TacticalButton {
-                        text: "[F3] PAQUETERÍA";
-                        h-stretch: 1;
-                        active: root.active-module == "paquete";
-                        clicked => { root.quick-action("paquete"); }
+
+                    // KPI 3: Unidades registradas
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        background: #09090b;
+                        border-radius: 8px;
+                        border-width: 1px;
+                        border-color: #18181b;
+
+                        VerticalLayout {
+                            padding: 14px;
+                            spacing: 4px;
+                            HorizontalLayout {
+                                alignment: space-between;
+                                Text { text: "UNIDADES REGISTRADAS"; color: #71717a; font-size: 11px; font-weight: 800; }
+                                Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #22c55e; y: 3px; }
+                            }
+                            HorizontalLayout {
+                                spacing: 10px;
+                                alignment: start;
+                                Text { text: root.units.length; color: #ffffff; font-size: 26px; font-weight: 900; vertical-alignment: bottom; }
+                                Text { text: "predios en directorio"; color: #4ade80; font-size: 11px; font-weight: 600; vertical-alignment: bottom; }
+                            }
+                        }
                     }
-                    TacticalButton {
-                        text: "[F4] UNIDADES & PREDIOS";
-                        h-stretch: 1;
-                        active: root.active-module == "unidades";
-                        clicked => { root.quick-action("unidades"); }
+                }
+
+                // PANEL PRINCIPAL DIVIDIDO: VISITAS ACTIVAS | PAQUETERÍA PENDIENTE
+                HorizontalLayout {
+                    vertical-stretch: 1;
+                    spacing: 12px;
+
+                    // COLUMNA IZQUIERDA: VISITAS DENTRO DE LA UNIDAD
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        background: #09090b;
+                        border-radius: 8px;
+                        border-width: 1px;
+                        border-color: #18181b;
+
+                        VerticalLayout {
+                            padding: 16px;
+                            spacing: 10px;
+
+                            HorizontalLayout {
+                                vertical-stretch: 0;
+                                alignment: space-between;
+                                VerticalLayout {
+                                    spacing: 2px;
+                                    Text {
+                                        text: "VISITAS DENTRO DE LA UNIDAD";
+                                        color: #ffffff;
+                                        font-size: 14px;
+                                        font-weight: 900;
+                                    }
+                                    Text {
+                                        text: "Personas actualmente dentro de la copropiedad sin registro de salida";
+                                        color: #71717a;
+                                        font-size: 11px;
+                                        font-weight: 500;
+                                    }
+                                }
+                                CompactActionButton {
+                                    text: "IR A VISITAS";
+                                    clicked => { root.quick-action("visita"); }
+                                }
+                            }
+
+                            Rectangle { height: 1px; background: #18181b; }
+
+                            // Cabecera de tabla
+                            Rectangle {
+                                height: 30px;
+                                background: #050507;
+                                border-radius: 4px;
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 12px;
+                                    spacing: 8px;
+                                    Text { text: "VISITANTE"; horizontal-stretch: 2; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: "DESTINO"; horizontal-stretch: 2; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: "INGRESO"; width: 58px; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: "ACCIÓN"; width: 92px; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; horizontal-alignment: right; }
+                                }
+                            }
+
+                            if (root.active-visits.length == 0): Rectangle {
+                                vertical-stretch: 1;
+                                background: #050507;
+                                border-radius: 6px;
+                                border-width: 1px;
+                                border-color: #18181b;
+                                VerticalLayout {
+                                    alignment: center;
+                                    spacing: 4px;
+                                    Text {
+                                        text: "No hay visitantes dentro de la unidad";
+                                        color: #a1a1aa;
+                                        font-size: 13px;
+                                        font-weight: 700;
+                                        horizontal-alignment: center;
+                                    }
+                                    Text {
+                                        text: "Todas las visitas registradas ya completaron su salida";
+                                        color: #52525b;
+                                        font-size: 11px;
+                                        horizontal-alignment: center;
+                                    }
+                                }
+                            }
+
+                            if (root.active-visits.length > 0): ScrollView {
+                                vertical-stretch: 1;
+                                VerticalLayout {
+                                    alignment: start;
+                                    spacing: 6px;
+                                    for visit[idx] in root.active-visits: Rectangle {
+                                        height: 54px;
+                                        background: #050507;
+                                        border-radius: 6px;
+                                        border-width: 1px;
+                                        border-color: #18181b;
+
+                                        HorizontalLayout {
+                                            padding-left: 12px;
+                                            padding-right: 12px;
+                                            spacing: 8px;
+
+                                            VerticalLayout {
+                                                horizontal-stretch: 2;
+                                                alignment: center;
+                                                spacing: 2px;
+                                                Text { text: visit.visitor-name; color: #ffffff; font-size: 12px; font-weight: 800; }
+                                                Text { text: visit.document + " • " + visit.access-type; color: #71717a; font-size: 10px; font-weight: 600; }
+                                            }
+
+                                            VerticalLayout {
+                                                horizontal-stretch: 2;
+                                                alignment: center;
+                                                Text { text: visit.destination; color: #38bdf8; font-size: 12px; font-weight: 700; }
+                                            }
+
+                                            Text {
+                                                text: visit.entry-time;
+                                                width: 58px;
+                                                color: #e4e4e7;
+                                                font-size: 12px;
+                                                font-weight: 700;
+                                                vertical-alignment: center;
+                                            }
+
+                                            VerticalLayout {
+                                                width: 92px;
+                                                alignment: center;
+                                                CompactActionButton {
+                                                    text: "DAR SALIDA";
+                                                    clicked => { root.register-visit-exit(idx); }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
-                    TacticalButton {
-                        text: "[F5] MINUTA & NOVEDADES";
-                        h-stretch: 1;
-                        active: root.active-module == "minuta";
-                        clicked => { root.quick-action("minuta"); }
+
+                    // COLUMNA DERECHA: PAQUETERÍA PENDIENTE POR ENTREGAR
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        background: #09090b;
+                        border-radius: 8px;
+                        border-width: 1px;
+                        border-color: #18181b;
+
+                        VerticalLayout {
+                            padding: 16px;
+                            spacing: 10px;
+
+                            HorizontalLayout {
+                                vertical-stretch: 0;
+                                alignment: space-between;
+                                VerticalLayout {
+                                    spacing: 2px;
+                                    Text {
+                                        text: "PAQUETERÍA PENDIENTE POR ENTREGAR";
+                                        color: #ffffff;
+                                        font-size: 14px;
+                                        font-weight: 900;
+                                    }
+                                    Text {
+                                        text: "Encomiendas recibidas en garita esperando reclamo del residente";
+                                        color: #71717a;
+                                        font-size: 11px;
+                                        font-weight: 500;
+                                    }
+                                }
+                                CompactActionButton {
+                                    text: "IR A PAQUETERÍA";
+                                    clicked => { root.quick-action("paquete"); }
+                                }
+                            }
+
+                            Rectangle { height: 1px; background: #18181b; }
+
+                            // Cabecera de tabla
+                            Rectangle {
+                                height: 30px;
+                                background: #050507;
+                                border-radius: 4px;
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 12px;
+                                    spacing: 8px;
+                                    Text { text: "DESTINO / RESIDENTE"; horizontal-stretch: 2; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: "EMPRESA / DETALLE"; horizontal-stretch: 2; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: "RECIBIDO"; width: 58px; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: "ACCIÓN"; width: 92px; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; horizontal-alignment: right; }
+                                }
+                            }
+
+                            if (root.pending-packages.length == 0): Rectangle {
+                                vertical-stretch: 1;
+                                background: #050507;
+                                border-radius: 6px;
+                                border-width: 1px;
+                                border-color: #18181b;
+                                VerticalLayout {
+                                    alignment: center;
+                                    spacing: 4px;
+                                    Text {
+                                        text: "Sin paquetería pendiente por entregar";
+                                        color: #a1a1aa;
+                                        font-size: 13px;
+                                        font-weight: 700;
+                                        horizontal-alignment: center;
+                                    }
+                                    Text {
+                                        text: "El casillero de portería se encuentra al día";
+                                        color: #52525b;
+                                        font-size: 11px;
+                                        horizontal-alignment: center;
+                                    }
+                                }
+                            }
+
+                            if (root.pending-packages.length > 0): ScrollView {
+                                vertical-stretch: 1;
+                                VerticalLayout {
+                                    alignment: start;
+                                    spacing: 6px;
+                                    for pkg[idx] in root.pending-packages: Rectangle {
+                                        height: 54px;
+                                        background: #050507;
+                                        border-radius: 6px;
+                                        border-width: 1px;
+                                        border-color: #18181b;
+
+                                        HorizontalLayout {
+                                            padding-left: 12px;
+                                            padding-right: 12px;
+                                            spacing: 8px;
+
+                                            VerticalLayout {
+                                                horizontal-stretch: 2;
+                                                alignment: center;
+                                                spacing: 2px;
+                                                Text { text: pkg.destination; color: #fbbf24; font-size: 12px; font-weight: 800; }
+                                                Text { text: pkg.recipient; color: #a1a1aa; font-size: 10px; font-weight: 600; }
+                                            }
+
+                                            VerticalLayout {
+                                                horizontal-stretch: 2;
+                                                alignment: center;
+                                                spacing: 2px;
+                                                Text { text: pkg.carrier; color: #ffffff; font-size: 12px; font-weight: 700; }
+                                                Text { text: pkg.description; color: #71717a; font-size: 10px; font-weight: 600; }
+                                            }
+
+                                            Text {
+                                                text: pkg.received-time;
+                                                width: 58px;
+                                                color: #e4e4e7;
+                                                font-size: 12px;
+                                                font-weight: 700;
+                                                vertical-alignment: center;
+                                            }
+
+                                            VerticalLayout {
+                                                width: 92px;
+                                                alignment: center;
+                                                CompactActionButton {
+                                                    text: "ENTREGAR";
+                                                    positive: true;
+                                                    clicked => { root.deliver-package(idx); }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
 
-            // 3. CUERPO PRINCIPAL: GESTIÓN DE UNIDADES
-            HorizontalLayout {
+            // ================================================================
+            // 3B. CUERPO PRINCIPAL: GESTIÓN DE UNIDADES
+            // ================================================================
+            if (root.active-module == "unidades"): HorizontalLayout {
+                vertical-stretch: 1;
                 spacing: 12px;
 
                 // PANEL IZQUIERDO: TORRES Y PARQUEADEROS
@@ -520,17 +1083,57 @@ export component AppWindow inherits Window {
                 }
             }
 
+            // ================================================================
+            // 3C. VISTAS EN CONSTRUCCIÓN (VISITAS, VEHÍCULOS, PAQUETERÍA, MINUTA)
+            // ================================================================
+            if (root.active-module != "home" && root.active-module != "unidades"): Rectangle {
+                vertical-stretch: 1;
+                background: #09090b;
+                border-radius: 8px;
+                border-width: 1px;
+                border-color: #18181b;
+
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 12px;
+
+                    Text {
+                        text: "MÓDULO EN CONSTRUCCIÓN: " + root.active-module;
+                        color: #ffffff;
+                        font-size: 18px;
+                        font-weight: 900;
+                        horizontal-alignment: center;
+                    }
+                    Text {
+                        text: "Este módulo será especificado e implementado en la siguiente iteración.";
+                        color: #71717a;
+                        font-size: 13px;
+                        horizontal-alignment: center;
+                    }
+                    HorizontalLayout {
+                        alignment: center;
+                        TacticalButton {
+                            text: "VOLVER A HOME [F1]";
+                            active: true;
+                            clicked => { root.quick-action("home"); }
+                        }
+                    }
+                }
+            }
+                }
+            }
+
             // 4. FOOTER TÁCTICO INFERIOR
             HorizontalLayout {
                 alignment: space-between;
                 Text {
-                    text: "ATAJOS: [F4] UNIDADES | [ESC] CERRAR PANEL | CLIC EN COMBOBOX PARA ASIGNAR PARQUEADEROS";
+                    text: "ATAJOS: [F1] HOME | [F2] VISITAS | [F3] VEHÍCULOS | [F4] PAQUETERÍA | [F5] UNIDADES | [F6] MINUTA | [ESC] CERRAR PANEL";
                     color: #52525b;
                     font-size: 11px;
                     font-weight: 700;
                 }
                 Text {
-                    text: "MAMORI v0.1.0 — DYNAMIC COMBOBOX PARKING (SLINT / RUST)";
+                    text: "MAMORI v0.1.0 — TERMINAL NATIVA DE PORTERÍA (SLINT / RUST)";
                     color: #52525b;
                     font-size: 11px;
                     font-weight: 700;
@@ -626,30 +1229,59 @@ export component AppWindow inherits Window {
 
                     // CAMPOS BASE
                     VerticalLayout {
+                        vertical-stretch: 0;
                         spacing: 12px;
 
                         VerticalLayout {
+                            vertical-stretch: 0;
                             spacing: 4px;
                             Text { text: "NÚMERO DE INMUEBLE / PREDIO:"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
-                            LineEdit { text <=> root.form-unit-number; placeholder-text: "Ej: 301, 102A, Casa 15"; }
+                            LineEdit {
+                                height: 36px;
+                                vertical-stretch: 0;
+                                horizontal-stretch: 1;
+                                text <=> root.form-unit-number;
+                                placeholder-text: "Ej: 301, 102A, Casa 15";
+                            }
                         }
 
                         VerticalLayout {
+                            vertical-stretch: 0;
                             spacing: 4px;
                             Text { text: "CITÓFONO / EXTENSIÓN FÍSICA:"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
-                            LineEdit { text <=> root.form-intercom; placeholder-text: "Ej: Ext. 301 o 'Sin citófono'"; }
+                            LineEdit {
+                                height: 36px;
+                                vertical-stretch: 0;
+                                horizontal-stretch: 1;
+                                text <=> root.form-intercom;
+                                placeholder-text: "Ej: Ext. 301 o 'Sin citófono'";
+                            }
                         }
 
                         VerticalLayout {
+                            vertical-stretch: 0;
                             spacing: 4px;
                             Text { text: "CELULAR:"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
-                            LineEdit { text <=> root.form-mobile; placeholder-text: "Ej: 300 123 4567"; }
+                            LineEdit {
+                                height: 36px;
+                                vertical-stretch: 0;
+                                horizontal-stretch: 1;
+                                text <=> root.form-mobile;
+                                placeholder-text: "Ej: 300 123 4567";
+                            }
                         }
 
                         VerticalLayout {
+                            vertical-stretch: 0;
                             spacing: 4px;
                             Text { text: "TELÉFONO FIJO (OPCIONAL):"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
-                            LineEdit { text <=> root.form-landline; placeholder-text: "Ej: (604) 444 0000"; }
+                            LineEdit {
+                                height: 36px;
+                                vertical-stretch: 0;
+                                horizontal-stretch: 1;
+                                text <=> root.form-landline;
+                                placeholder-text: "Ej: (604) 444 0000";
+                            }
                         }
                     }
 
@@ -659,6 +1291,7 @@ export component AppWindow inherits Window {
                     // SECCIÓN DE PARQUEADEROS PRIVADOS ASIGNADOS
                     // ========================================================
                     VerticalLayout {
+                        vertical-stretch: 0;
                         spacing: 8px;
 
                         HorizontalLayout {
@@ -716,7 +1349,7 @@ export component AppWindow inherits Window {
 
                             HorizontalLayout {
                                 padding-left: 12px;
-                                padding-right: 12px;
+                                padding-right: 8px;
                                 alignment: space-between;
 
                                 HorizontalLayout {
@@ -737,9 +1370,12 @@ export component AppWindow inherits Window {
                                     }
                                 }
 
-                                DeleteButton {
-                                    clicked => {
-                                        root.remove-parking-selection(idx);
+                                VerticalLayout {
+                                    alignment: center;
+                                    DeleteButton {
+                                        clicked => {
+                                            root.remove-parking-selection(idx);
+                                        }
                                     }
                                 }
                             }
@@ -757,11 +1393,12 @@ export component AppWindow inherits Window {
                         }
                     }
 
-                    Rectangle { height: 10px; }
+                    Rectangle { vertical-stretch: 1; }
                     Rectangle { height: 1px; background: #18181b; }
 
                     // BOTONES DE ACCIÓN INFERIORES
                     VerticalLayout {
+                        vertical-stretch: 0;
                         spacing: 8px;
 
                         TacticalButton {
@@ -849,6 +1486,7 @@ export component AppWindow inherits Window {
 
                         // BUSCADOR EN TIEMPO REAL
                         VerticalLayout {
+                            vertical-stretch: 0;
                             spacing: 4px;
                             Text {
                                 text: "BUSCADOR DE CELDAS:";
@@ -857,6 +1495,9 @@ export component AppWindow inherits Window {
                                 font-weight: 800;
                             }
                             LineEdit {
+                                height: 36px;
+                                vertical-stretch: 0;
+                                horizontal-stretch: 1;
                                 text <=> root.parking-search-query;
                                 placeholder-text: "Buscar por código (ej: P-105) o tipo (Carro / Moto)...";
                                 edited(q) => {
@@ -867,7 +1508,7 @@ export component AppWindow inherits Window {
 
                         // LISTA DE RESULTADOS
                         if (root.filtered-parking-options.length == 0): Rectangle {
-                            height: 140px;
+                            vertical-stretch: 1;
                             background: #050507;
                             border-radius: 6px;
                             border-width: 1px;
@@ -893,8 +1534,9 @@ export component AppWindow inherits Window {
                         }
 
                         if (root.filtered-parking-options.length > 0): ScrollView {
-                            height: 200px;
+                            vertical-stretch: 1;
                             VerticalLayout {
+                                alignment: start;
                                 spacing: 6px;
                                 for item in root.filtered-parking-options: Rectangle {
                                     height: 40px;
@@ -970,105 +1612,151 @@ export component AppWindow inherits Window {
     }
 
     // ========================================================================
-    // MODAL FLOTANTE: CREAR NUEVO PARQUEADERO EN LA COPROPIEDAD
+    // CAPA LATERAL: PANEL DERECHO (DRAWER DE NUEVO PARQUEADERO)
     // ========================================================================
     if (root.show-parking-modal): Rectangle {
         width: 100%;
         height: 100%;
-        background: #000000d0;
+        background: #000000a6;
 
         TouchArea {
-            clicked => { /* Evita clics al fondo */ }
+            clicked => { root.show-parking-modal = false; }
         }
 
         Rectangle {
-            width: 420px;
-            height: 280px;
+            x: parent.width - self.width;
+            y: 0;
+            width: 500px;
+            height: parent.height;
             background: #09090b;
-            border-radius: 10px;
             border-width: 1px;
             border-color: #27272a;
 
-            VerticalLayout {
-                padding: 22px;
-                spacing: 14px;
+            TouchArea {
+                clicked => { /* Absorbe clics internos */ }
+            }
 
-                HorizontalLayout {
-                    alignment: space-between;
-                    Text {
-                        text: "NUEVO PARQUEADERO";
-                        color: #ffffff;
-                        font-size: 16px;
-                        font-weight: 900;
+            parking-drawer-scope := FocusScope {
+                key-pressed(event) => {
+                    if (event.text == Key.Escape) {
+                        root.show-parking-modal = false;
+                        return accept;
                     }
-                    Rectangle {
-                        width: 28px;
-                        height: 28px;
-                        border-radius: 14px;
-                        background: close-pk-touch.has-hover ? #27272a : #18181b;
-
-                        close-pk-touch := TouchArea {
-                            clicked => { root.show-parking-modal = false; }
-                        }
-
-                        Text {
-                            text: "✕";
-                            color: #a1a1aa;
-                            font-size: 13px;
-                            font-weight: 800;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                        }
-                    }
-                }
-
-                Rectangle { height: 1px; background: #18181b; }
-
-                VerticalLayout {
-                    spacing: 5px;
-                    Text { text: "CÓDIGO / IDENTIFICADOR DE BAHÍA:"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
-                    LineEdit { text <=> root.form-parking-code; placeholder-text: "Ej: P-107, Celda M-05"; }
+                    return reject;
                 }
 
                 VerticalLayout {
-                    spacing: 5px;
-                    Text { text: "TIPO DE VEHÍCULO:"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
+                    padding: 22px;
+                    spacing: 14px;
+
+                    // CABECERA DEL PANEL
                     HorizontalLayout {
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            spacing: 2px;
+                            Text {
+                                text: "NUEVO PARQUEADERO";
+                                color: #ffffff;
+                                font-size: 18px;
+                                font-weight: 900;
+                            }
+                            Text {
+                                text: "Catálogo de bahías de la copropiedad";
+                                color: #38bdf8;
+                                font-size: 13px;
+                                font-weight: 600;
+                            }
+                        }
+
+                        Rectangle {
+                            width: 32px;
+                            height: 32px;
+                            border-radius: 16px;
+                            background: close-pk-touch.has-hover ? #27272a : #18181b;
+
+                            close-pk-touch := TouchArea {
+                                clicked => { root.show-parking-modal = false; }
+                            }
+
+                            Text {
+                                text: "✕";
+                                color: #a1a1aa;
+                                font-size: 14px;
+                                font-weight: 800;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: #18181b; }
+
+                    // CAMPOS DEL PARQUEADERO
+                    VerticalLayout {
+                        vertical-stretch: 0;
+                        spacing: 12px;
+
+                        VerticalLayout {
+                            vertical-stretch: 0;
+                            spacing: 5px;
+                            Text { text: "CÓDIGO / IDENTIFICADOR DE BAHÍA:"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
+                            LineEdit {
+                                height: 36px;
+                                vertical-stretch: 0;
+                                horizontal-stretch: 1;
+                                text <=> root.form-parking-code;
+                                placeholder-text: "Ej: P-107, Celda M-05";
+                            }
+                        }
+
+                        VerticalLayout {
+                            vertical-stretch: 0;
+                            spacing: 5px;
+                            Text { text: "TIPO DE VEHÍCULO:"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
+                            HorizontalLayout {
+                                spacing: 8px;
+                                TacticalButton {
+                                    text: "CARRO";
+                                    h-stretch: 1;
+                                    active: root.form-parking-type == "Carro";
+                                    clicked => { root.form-parking-type = "Carro"; }
+                                }
+                                TacticalButton {
+                                    text: "MOTO";
+                                    h-stretch: 1;
+                                    active: root.form-parking-type == "Moto";
+                                    clicked => { root.form-parking-type = "Moto"; }
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle { vertical-stretch: 1; }
+                    Rectangle { height: 1px; background: #18181b; }
+
+                    // BOTONES DE ACCIÓN INFERIORES
+                    VerticalLayout {
+                        vertical-stretch: 0;
                         spacing: 8px;
+
                         TacticalButton {
-                            text: "CARRO";
+                            text: "GUARDAR PARQUEADERO";
+                            primary: true;
                             h-stretch: 1;
-                            active: root.form-parking-type == "Carro";
-                            clicked => { root.form-parking-type = "Carro"; }
+                            font-size: 13px;
+                            clicked => {
+                                root.create-new-parking();
+                            }
                         }
+
                         TacticalButton {
-                            text: "MOTO";
+                            text: "CANCELAR [ESC]";
                             h-stretch: 1;
-                            active: root.form-parking-type == "Moto";
-                            clicked => { root.form-parking-type = "Moto"; }
-                        }
-                    }
-                }
-
-                Rectangle { height: 1px; background: #18181b; }
-
-                HorizontalLayout {
-                    alignment: end;
-                    spacing: 10px;
-
-                    TacticalButton {
-                        text: "CANCELAR";
-                        font-size: 12px;
-                        clicked => { root.show-parking-modal = false; }
-                    }
-
-                    TacticalButton {
-                        text: "GUARDAR PARQUEADERO";
-                        primary: true;
-                        font-size: 12px;
-                        clicked => {
-                            root.create-new-parking();
-                            root.show-parking-modal = false;
+                            font-size: 12px;
+                            clicked => {
+                                root.show-parking-modal = false;
+                            }
                         }
                     }
                 }
