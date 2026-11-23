@@ -1,7 +1,7 @@
 import { LineEdit, ScrollView } from "std-widgets.slint";
 
 // ============================================================================
-// COMPONENTES TÁCTICOS CON ESTILO NEGRO PURO (TRUE BLACK)
+// COMPONENTES TÁCTICOS CON ESTILO NEGRO PURO Y AUTO-AJUSTE DINÁMICO
 // ============================================================================
 
 component TacticalButton inherits Rectangle {
@@ -9,9 +9,12 @@ component TacticalButton inherits Rectangle {
     in property <bool> active: false;
     in property <bool> primary: false;
     in property <length> font-size: 13px;
+    in property <int> h-stretch: 0;
     callback clicked;
 
+    horizontal-stretch: root.h-stretch;
     height: 38px;
+    min-width: txt.min-width + 24px;
     border-radius: 6px;
     border-width: 1px;
     border-color: root.active ? #38bdf8 : (root.primary ? #22c55e : (touch.has-hover ? #3f3f46 : #27272a));
@@ -21,13 +24,19 @@ component TacticalButton inherits Rectangle {
         clicked => { root.clicked(); }
     }
 
-    Text {
-        text: root.text;
-        color: root.active ? #ffffff : (root.primary ? #4ade80 : (touch.has-hover ? #fafafa : #a1a1aa));
-        font-size: root.font-size;
-        font-weight: 700;
-        horizontal-alignment: center;
-        vertical-alignment: center;
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        alignment: center;
+
+        txt := Text {
+            text: root.text;
+            color: root.active ? #ffffff : (root.primary ? #4ade80 : (touch.has-hover ? #fafafa : #a1a1aa));
+            font-size: root.font-size;
+            font-weight: 700;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+        }
     }
 }
 
@@ -50,7 +59,7 @@ export struct TowerItem {
 }
 
 // ============================================================================
-// VENTANA PRINCIPAL — MAMORI TACTICAL BLACK EDITION
+// VENTANA PRINCIPAL — MAMORI BLACK EDITION CON VENTANA MODAL FLOTANTE
 // ============================================================================
 export component AppWindow inherits Window {
     title: "MAMORI — Terminal de Portería (Black Edition)";
@@ -58,14 +67,14 @@ export component AppWindow inherits Window {
     preferred-height: 760px;
     min-width: 950px;
     min-height: 680px;
-    background: #000000; // NEGRO PURO (TRUE BLACK)
+    background: #000000; // NEGRO PURO
 
     in-out property <string> active-module: "unidades";
     in-out property <string> status-text: "SISTEMA OPERATIVO | BASE DE DATOS LOCAL SINCRONIZADA";
     in-out property <string> selected-tower: "Torre 1";
-    in-out property <bool> show-form: false;
+    in-out property <bool> show-modal: false;
 
-    // Campos del formulario
+    // Campos del formulario modal
     in-out property <string> form-unit-number: "";
     in-out property <string> form-unit-type: "Apartamento";
     in-out property <string> form-intercom: "";
@@ -93,18 +102,18 @@ export component AppWindow inherits Window {
     callback quick-action(string);
     callback select-tower(string);
     callback save-unit();
-    callback toggle-form(bool);
 
+    // ========================================================================
+    // CAPA BASE: VISTA PRINCIPAL
+    // ========================================================================
     VerticalLayout {
         padding: 14px;
         spacing: 12px;
 
-        // ====================================================================
-        // 1. HEADER NEGRO PURO CON ACENTO NEÓN
-        // ====================================================================
+        // 1. HEADER NEGRO PURO
         Rectangle {
             height: 58px;
-            background: #09090b; // Casi negro
+            background: #09090b;
             border-radius: 8px;
             border-width: 1px;
             border-color: #18181b;
@@ -152,57 +161,56 @@ export component AppWindow inherits Window {
             }
         }
 
-        // ====================================================================
-        // 2. BARRA DE ATAJOS DE TECLADO (F1 - F5) ESTILO TÁCTICO
-        // ====================================================================
+        // 2. BARRA DE MÓDULOS CON AUTO-AJUSTE
         Rectangle {
-            height: 48px;
+            height: 50px;
             background: #09090b;
             border-radius: 8px;
             border-width: 1px;
             border-color: #18181b;
 
             HorizontalLayout {
-                padding: 5px;
+                padding: 6px;
                 spacing: 8px;
 
                 TacticalButton {
                     text: "[F1] VISITAS";
+                    h-stretch: 1;
                     active: root.active-module == "visita";
                     clicked => { root.quick-action("visita"); }
                 }
                 TacticalButton {
                     text: "[F2] VEHÍCULOS";
+                    h-stretch: 1;
                     active: root.active-module == "vehiculo";
                     clicked => { root.quick-action("vehiculo"); }
                 }
                 TacticalButton {
                     text: "[F3] PAQUETERÍA";
+                    h-stretch: 1;
                     active: root.active-module == "paquete";
                     clicked => { root.quick-action("paquete"); }
                 }
                 TacticalButton {
                     text: "[F4] UNIDADES & PREDIOS";
+                    h-stretch: 1;
                     active: root.active-module == "unidades";
                     clicked => { root.quick-action("unidades"); }
                 }
                 TacticalButton {
                     text: "[F5] MINUTA & NOVEDADES";
+                    h-stretch: 1;
                     active: root.active-module == "minuta";
                     clicked => { root.quick-action("minuta"); }
                 }
             }
         }
 
-        // ====================================================================
-        // 3. CUERPO PRINCIPAL: GESTIÓN DE UNIDADES (NEGRO PROFUNDO)
-        // ====================================================================
+        // 3. CUERPO PRINCIPAL: GESTIÓN DE UNIDADES
         HorizontalLayout {
             spacing: 12px;
 
-            // ----------------------------------------------------------------
             // PANEL IZQUIERDO: TORRES Y BLOQUES
-            // ----------------------------------------------------------------
             Rectangle {
                 width: 260px;
                 background: #09090b;
@@ -227,7 +235,6 @@ export component AppWindow inherits Window {
 
                     Rectangle { height: 1px; background: #18181b; }
 
-                    // Lista de Torres en Negro con Selección Blanca/Azul
                     for tower in root.towers: Rectangle {
                         height: 48px;
                         border-radius: 6px;
@@ -278,6 +285,7 @@ export component AppWindow inherits Window {
 
                     TacticalButton {
                         text: "+ NUEVA TORRE / BLOQUE";
+                        h-stretch: 1;
                         clicked => {
                             root.status-text = "Iniciando creación de nueva torre...";
                         }
@@ -285,9 +293,7 @@ export component AppWindow inherits Window {
                 }
             }
 
-            // ----------------------------------------------------------------
-            // PANEL DERECHO: INMUEBLES EN LA TORRE SELECCIONADA
-            // ----------------------------------------------------------------
+            // PANEL DERECHO: DIRECTORIO DE INMUEBLES
             Rectangle {
                 background: #09090b;
                 border-radius: 8px;
@@ -320,93 +326,19 @@ export component AppWindow inherits Window {
                             }
                         }
 
-                        HorizontalLayout {
-                            spacing: 8px;
-                            TacticalButton {
-                                text: root.show-form ? "CERRAR FORMULARIO [ESC]" : "+ NUEVO INMUEBLE [INS]";
-                                primary: !root.show-form;
-                                active: root.show-form;
-                                clicked => {
-                                    root.show-form = !root.show-form;
-                                }
+                        // BOTÓN QUE ABRE EL MODAL
+                        TacticalButton {
+                            text: "+ NUEVO INMUEBLE [MODAL]";
+                            primary: true;
+                            clicked => {
+                                root.show-modal = true;
                             }
                         }
                     }
 
                     Rectangle { height: 1px; background: #18181b; }
 
-                    // --------------------------------------------------------
-                    // FORMULARIO CONDICIONAL DE CREACIÓN DE INMUEBLE
-                    // --------------------------------------------------------
-                    if (root.show-form): Rectangle {
-                        background: #050507;
-                        border-radius: 8px;
-                        border-width: 1px;
-                        border-color: #27272a;
-
-                        VerticalLayout {
-                            padding: 14px;
-                            spacing: 10px;
-
-                            Text {
-                                text: "REGISTRAR NUEVO PREDIO EN " + root.selected-tower;
-                                color: #38bdf8;
-                                font-size: 13px;
-                                font-weight: 800;
-                            }
-
-                            HorizontalLayout {
-                                spacing: 10px;
-                                VerticalLayout {
-                                    spacing: 4px;
-                                    Text { text: "N° Inmueble (ej: 301):"; color: #a1a1aa; font-size: 11px; font-weight: 700; }
-                                    LineEdit { text <=> root.form-unit-number; placeholder-text: "Ej: 301"; }
-                                }
-                                VerticalLayout {
-                                    spacing: 4px;
-                                    Text { text: "Citófono / Extensión:"; color: #a1a1aa; font-size: 11px; font-weight: 700; }
-                                    LineEdit { text <=> root.form-intercom; placeholder-text: "Ext. 301 o 'Sin citófono'"; }
-                                }
-                                VerticalLayout {
-                                    spacing: 4px;
-                                    Text { text: "Celular Principal (Garita):"; color: #a1a1aa; font-size: 11px; font-weight: 700; }
-                                    LineEdit { text <=> root.form-mobile; placeholder-text: "300 000 0000"; }
-                                }
-                            }
-
-                            HorizontalLayout {
-                                spacing: 10px;
-                                VerticalLayout {
-                                    spacing: 4px;
-                                    Text { text: "Teléfono Fijo (Opcional):"; color: #a1a1aa; font-size: 11px; font-weight: 700; }
-                                    LineEdit { text <=> root.form-landline; placeholder-text: "(604) 000 0000"; }
-                                }
-                                VerticalLayout {
-                                    spacing: 4px;
-                                    Text { text: "Parqueaderos Privados:"; color: #a1a1aa; font-size: 11px; font-weight: 700; }
-                                    LineEdit { text <=> root.form-parking; placeholder-text: "Ej: P-301, Celda M-02"; }
-                                }
-                            }
-
-                            HorizontalLayout {
-                                alignment: end;
-                                spacing: 10px;
-                                TacticalButton {
-                                    text: "CANCELAR";
-                                    clicked => { root.show-form = false; }
-                                }
-                                TacticalButton {
-                                    text: "💾 GUARDAR INMUEBLE";
-                                    primary: true;
-                                    clicked => { root.save-unit(); }
-                                }
-                            }
-                        }
-                    }
-
-                    // --------------------------------------------------------
-                    // TABLA DE INMUEBLES EN NEGRO PURO
-                    // --------------------------------------------------------
+                    // TABLA DE INMUEBLES LIMPIA Y ESPACIOSA
                     VerticalLayout {
                         spacing: 3px;
 
@@ -431,7 +363,7 @@ export component AppWindow inherits Window {
                             }
                         }
 
-                        // Filas de Inmuebles con fondo negro y bordes sutiles
+                        // Filas de Inmuebles
                         for unit in root.units: Rectangle {
                             height: 42px;
                             background: #050507;
@@ -446,7 +378,6 @@ export component AppWindow inherits Window {
                                 Text { text: unit.unit-number; width: 110px; color: #ffffff; font-size: 13px; font-weight: 800; vertical-alignment: center; }
                                 Text { text: unit.unit-type; width: 120px; color: #a1a1aa; font-size: 13px; vertical-alignment: center; }
                                 
-                                // Indicador de citófono (Verde si tiene, Rojo si carece)
                                 HorizontalLayout {
                                     width: 140px;
                                     spacing: 6px;
@@ -469,7 +400,6 @@ export component AppWindow inherits Window {
                                 Text { text: unit.mobile; width: 140px; color: #e4e4e7; font-size: 13px; font-weight: 600; vertical-alignment: center; }
                                 Text { text: unit.landline; width: 120px; color: #71717a; font-size: 13px; vertical-alignment: center; }
                                 
-                                // Parqueadero privado en azul cian táctico
                                 Text {
                                     text: unit.parking;
                                     color: unit.parking == "Sin celda" ? #52525b : #38bdf8;
@@ -484,9 +414,7 @@ export component AppWindow inherits Window {
             }
         }
 
-        // ====================================================================
-        // 4. FOOTER TÁCTICO INFERIOR (NEGRO PURO)
-        // ====================================================================
+        // 4. FOOTER TÁCTICO INFERIOR
         HorizontalLayout {
             alignment: space-between;
             Text {
@@ -496,10 +424,154 @@ export component AppWindow inherits Window {
                 font-weight: 700;
             }
             Text {
-                text: "MAMORI v0.1.0 — TRUE BLACK EDITION (SLINT / RUST)";
+                text: "MAMORI v0.1.0 — TRUE BLACK & MODAL OVERLAY (SLINT / RUST)";
                 color: #52525b;
                 font-size: 11px;
                 font-weight: 700;
+            }
+        }
+    }
+
+    // ========================================================================
+    // CAPA SUPERIOR: VENTANA MODAL FLOTANTE (OVERLAY TÁCTICO)
+    // ========================================================================
+    if (root.show-modal): Rectangle {
+        // Fondo semi-transparente que oscurece el resto de la pantalla
+        background: #000000d9; // 85% opacidad negra
+        width: 100%;
+        height: 100%;
+
+        // Clic en el fondo oscuro para bloquear clics a la vista de abajo
+        TouchArea {
+            clicked => { /* Absorbe clics externos */ }
+        }
+
+        // TARJETA CENTRAL DE LA VENTANA MODAL
+        Rectangle {
+            width: 620px;
+            height: 480px;
+            background: #09090b; // Negro profundo
+            border-radius: 12px;
+            border-width: 1px;
+            border-color: #27272a; // Borde gris sutil elegante
+            clip: true;
+
+            VerticalLayout {
+                padding: 24px;
+                spacing: 16px;
+
+                // CABECERA DEL MODAL
+                HorizontalLayout {
+                    alignment: space-between;
+
+                    VerticalLayout {
+                        spacing: 2px;
+                        Text {
+                            text: "REGISTRAR NUEVO INMUEBLE";
+                            color: #ffffff;
+                            font-size: 17px;
+                            font-weight: 900;
+                        }
+                        Text {
+                            text: "Asignando predio en: " + root.selected-tower;
+                            color: #38bdf8;
+                            font-size: 13px;
+                            font-weight: 600;
+                        }
+                    }
+
+                    // Botón cerrar modal [X]
+                    Rectangle {
+                        width: 32px;
+                        height: 32px;
+                        border-radius: 16px;
+                        background: close-touch.has-hover ? #27272a : #18181b;
+
+                        close-touch := TouchArea {
+                            clicked => { root.show-modal = false; }
+                        }
+
+                        Text {
+                            text: "✕";
+                            color: #a1a1aa;
+                            font-size: 14px;
+                            font-weight: 800;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                Rectangle { height: 1px; background: #18181b; }
+
+                // CAMPOS DEL FORMULARIO MODAL
+                VerticalLayout {
+                    spacing: 12px;
+
+                    // Fila 1: Número de Predio y Tipo
+                    HorizontalLayout {
+                        spacing: 12px;
+                        VerticalLayout {
+                            spacing: 5px;
+                            Text { text: "NÚMERO DE INMUEBLE / PREDIO:"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
+                            LineEdit { text <=> root.form-unit-number; placeholder-text: "Ej: 301, 102A, Casa 15"; }
+                        }
+                        VerticalLayout {
+                            spacing: 5px;
+                            Text { text: "CITÓFONO / EXTENSIÓN:"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
+                            LineEdit { text <=> root.form-intercom; placeholder-text: "Ej: Ext. 301 o 'Sin citófono'"; }
+                        }
+                    }
+
+                    // Fila 2: Celular principal y Teléfono Fijo
+                    HorizontalLayout {
+                        spacing: 12px;
+                        VerticalLayout {
+                            spacing: 5px;
+                            Text { text: "TELÉFONO CELULAR (CONTACTO GARITA):"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
+                            LineEdit { text <=> root.form-mobile; placeholder-text: "Ej: 300 123 4567"; }
+                        }
+                        VerticalLayout {
+                            spacing: 5px;
+                            Text { text: "TELÉFONO FIJO (OPCIONAL):"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
+                            LineEdit { text <=> root.form-landline; placeholder-text: "Ej: (604) 444 0000"; }
+                        }
+                    }
+
+                    // Fila 3: Parqueaderos Privados
+                    VerticalLayout {
+                        spacing: 5px;
+                        Text { text: "PARQUEADEROS PRIVADOS ASIGNADOS:"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
+                        LineEdit { text <=> root.form-parking; placeholder-text: "Ej: P-301, Celda Moto M-02 (Separados por coma)"; }
+                    }
+                }
+
+                Rectangle { height: 6px; }
+                Rectangle { height: 1px; background: #18181b; }
+
+                // BOTONES DE ACCIÓN INFERIORES DEL MODAL
+                HorizontalLayout {
+                    alignment: end;
+                    spacing: 12px;
+
+                    TacticalButton {
+                        text: "CANCELAR [ESC]";
+                        font-size: 12px;
+                        clicked => {
+                            root.show-modal = false;
+                        }
+                    }
+
+                    TacticalButton {
+                        text: "💾 GUARDAR INMUEBLE";
+                        primary: true;
+                        font-size: 13px;
+                        clicked => {
+                            root.save-unit();
+                            root.show-modal = false;
+                        }
+                    }
+                }
             }
         }
     }

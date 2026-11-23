@@ -47,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 );
 
                 ui.set_status_text(format!("Inmueble {} guardado exitosamente.", unit_number).into());
-                ui.set_show_form(false);
+                ui.set_show_modal(false);
             }
         }
     });
