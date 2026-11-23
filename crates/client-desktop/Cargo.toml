@@ -3,6 +3,7 @@ name = "mamori-client"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
+license.workspace = true
 
 [dependencies]
 mamori-shared = { path = "../shared" }

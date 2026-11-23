@@ -32,4 +32,13 @@
   1. Compilación directa a binario máquina `.exe`.
   2. Renderizado acelerado por GPU (DirectX / software).
   3. Consumo mínimo de recursos (<12 MB RAM vs 150 MB de alternativas web).
-  4. Latencia cero en captura de atajos de teclado (`F1`..`F12`) y hardware local (lectores de cédulas e impresoras térmicas).
+  4. Latencia cero en captura de atajos de teclado (`F1`..`F5`) y hardware local (lectores de cédulas e impresoras térmicas).
+
+---
+
+### [2026-11-22] Aprendizaje 06 — Patrones Reactivos en Slint: Side Drawer y Option Lists Dinámicos (D-13, D-14)
+- **Contexto:** En el registro de unidades, se requería una experiencia ágil para vigilantes: abrir un panel lateral deslizante (Side Drawer) que no tape por completo el contexto, capturar atajo `ESC` global para descartar, y permitir asociar múltiples parqueaderos privados mediante un flujo dinámico donde seleccionar una opción despliega automáticamente otro `ComboBox` para agregar adicionales, permitiendo editar o eliminar cualquier ítem previo.
+- **Implementación Técnica:**
+  - El drawer se implementa como un `Rectangle` flotante anclado a la derecha con un backdrop oscuro transparente que intercepta clics fuera del área.
+  - La captura de `Key.Escape` en `FocusScope` permite un control de teclado natural.
+  - El listado dinámico de parqueaderos se conecta mediante un `VecModel<SharedString>` en Rust consumido por un `for spot-val[idx] in root.selected-parking-list` en Slint, combinado con callbacks bidireccionales (`on_add_parking_selection`, `on_change_parking_selection`, `on_remove_parking_selection`).

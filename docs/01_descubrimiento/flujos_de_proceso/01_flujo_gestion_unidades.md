@@ -11,12 +11,13 @@
 ## 1. Propósito y Alcance del Flujo
 Permitir al usuario (Administrador o Guarda autorizado) configurar la estructura física de la unidad residencial:
 1. Crear y parametrizar las **Torres o Bloques**.
-2. Registrar los **Inmuebles (Apartamentos o Casas)** asignados a cada torre o bloque.
-3. Asignar los canales de comunicación obligatorios para la garita:
+2. Crear y gestionar el **Catálogo de Parqueaderos** de la copropiedad (Carro, Moto, etc.).
+3. Registrar los **Inmuebles (Apartamentos o Casas)** asignados a cada torre o bloque.
+4. Asignar los canales de comunicación obligatorios para la garita:
    - **Número de Citófono / Extensión**.
-   - **Teléfono Celular** (principal para notificaciones o en caso de carecer de citófono físico).
+   - **Teléfono Celular**.
    - **Teléfono Fijo** (opcional).
-4. Asignar y vincular los **Parqueaderos Privados** propios del inmueble (número de bahía/celda).
+5. Asignar **Parqueaderos Privados** propios del inmueble seleccionando exclusivamente del **pool de parqueaderos disponibles** (no asignados previamente a otra unidad), permitiendo asociar múltiples celdas por predio.
 
 ---
 
@@ -24,106 +25,66 @@ Permitir al usuario (Administrador o Guarda autorizado) configurar la estructura
 
 ```mermaid
 flowchart TD
-    START(["Inicio: Módulo de Configuración"]) --> V1["Vista 1: Gestión de Torres / Bloques"]
+    START(["Inicio: Módulo de Unidades"]) --> V1["Vista Principal: Torres y Predios"]
     
-    V1 --> ACC_TORRE{"¿Qué acción realiza?"}
-    ACC_TORRE -->|"Crear / Editar Torre"| FORM_TORRE["Formulario: Nombre Torre/Bloque<br/>(ej: Torre 1, Manzana B)"]
-    FORM_TORRE --> SAVE_T["Guardar Torre"] --> V1
+    V1 --> ACC_PARK{"¿Crear Parqueadero en Copropiedad?"}
+    ACC_PARK -->|"Sí"| FORM_PARK["Modal: Código de Bahía (ej: P-105) + Tipo (Carro/Moto)"]
+    FORM_PARK --> SAVE_PARK["Guardar en Catálogo como Disponible"] --> V1
     
-    ACC_TORRE -->|"Seleccionar Torre"| V2["Vista 2: Listado de Inmuebles de la Torre"]
-    
-    V2 --> ACC_INM{"¿Acción en Inmuebles?"}
-    ACC_INM -->|"Crear Nuevo Inmueble"| FORM_INM["Vista 3: Formulario Detalle de Inmueble"]
-    ACC_INM -->|"Editar Inmueble Existente"| FORM_INM
+    V1 -->|"Abrir Nuevo Inmueble"| DRAWER["Panel Lateral Derecho (Side Drawer)"]
     
     subgraph Formulario_Inmueble ["Campos de Inmueble"]
-        F1["Nomenclatura (ej: Apto 302, Casa 14)"]
-        F2["Tipo: Residencial / Comercial / Administración"]
-        F3["Canal Principal: Citófono / Extensión"]
-        F4["Canal Alternativo: Celular (WhatsApp/Llamada)"]
-        F5["Teléfono Fijo (Opcional)"]
-        F6["Asignación de Parqueaderos Privados (ej: Bahía 101, Celda M-04)"]
+        F1["N° Inmueble (ej: 301, Casa 14)"]
+        F2["Citófono / Extensión"]
+        F3["Celular"]
+        F4["Teléfono Fijo (Opcional)"]
+        F5["Lista de Parqueaderos Disponibles (Sin Asignar)"]
     end
     
-    FORM_INM --> Formulario_Inmueble
-    Formulario_Inmueble --> VAL{"Validar Datos Obligatorios"}
+    DRAWER --> Formulario_Inmueble
+    F5 --> SELECT_PARK{"Seleccionar Bahía(s) Disponible(s)"}
+    SELECT_PARK -->|"Clic en Chip(s)"| ADD_TO_UNIT["Vincular al Inmueble"]
     
-    VAL -->|"Falta Nomenclatura o Contacto"| ERR["Mostrar Error de Validación"] --> FORM_INM
-    VAL -->|"Válido"| SAVE_INM["Guardar Inmueble en Base de Datos"]
-    
-    SAVE_INM --> SYNC["Sincronizar Catálogo Local (SQLite) + Servidor (Postgres)"]
-    SYNC --> V2
-    V2 --> FIN(["Fin: Inmuebles Listos para Censo de Residentes"])
+    ADD_TO_UNIT --> SAVE_INM["Guardar Inmueble"]
+    SAVE_INM --> REMOVE_AVAIL["Remover Bahía del Pool Disponible (Pasa a Asignado)"]
+    REMOVE_AVAIL --> V1
 ```
 
 ---
 
 ## 3. Especificación de Vistas de Usuario (Terminal Windows)
 
-### 🖥️ Vista 1: Selector y Gestión de Torres / Bloques
-* **Atajos de Teclado:** `[N]` Nueva Torre, `[Enter]` Abrir Inmuebles, `[F2]` Renombrar, `[Esc]` Volver al Menú Principal.
-* **Componentes:**
-  - Tarjetas / Cuadrícula interactiva con las torres creadas (ej: `Torre A`, `Torre B`, `Manzana 1`).
-  - Cada tarjeta muestra resumen: Total de apartamentos creados y estado de ocupación.
+### 🖥️ Vista 1: Selector de Torres y Parqueaderos (Panel Izquierdo)
+* Lista de torres creadas con contador de apartamentos.
+* Botón de acción: `NUEVA TORRE / BLOQUE`.
+* Sub-módulo: **PARQUEADEROS COPROPIEDAD** con botón **`CREAR PARQUEADERO`**.
 
-### 🖥️ Vista 2: Directorio de Inmuebles por Torre
-* **Atajos de Teclado:** `[Ins]` o `[F1]` Agregar Inmueble, `[Enter]` Editar, `[F3]` Buscar por número de apto, `[Del]` Desactivar.
-* **Tabla de Datos:**
-  | Torre | Inmueble | Tipo | Citófono | Celular Contacto | Tel. Fijo | Parq. Privados |
-  | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-  | Torre 1 | **Apto 101** | Residencial | Ext. 101 | 300 123 4567 | (604) 444 0000 | P-101 |
-  | Torre 1 | **Apto 102** | Residencial | *(Sin citófono)* | 315 987 6543 | - | P-102, P-102B |
-  | Torre 1 | **Apto 103** | Residencial | Ext. 103 | 311 555 8899 | - | *(Sin parqueadero)* |
+### 🖥️ Vista 2: Directorio de Inmuebles (Panel Central)
+* Tabla de predios: `INMUEBLE` | `TIPO` | `CITÓFONO / EXT.` | `CELULAR` | `TEL. FIJO` | `PARQUEADEROS PRIVADOS`.
+* Botón: `NUEVO INMUEBLE` que abre el panel lateral derecho.
 
-### 🖥️ Vista 3: Formulario Modal de Creación / Edición de Inmueble
-Campos estructurados en la interfaz de usuario:
-1. **Torre / Bloque:** Seleccionado por defecto (desplegable).
-2. **Número de Inmueble:** Campo de texto (ej: `101`, `102A`, `Casa 25`).
-3. **Tipo de Inmueble:** Selector (`Apartamento`, `Casa`, `Oficina/Local`, `Depósito`).
-4. **Canales de Citofonía y Contacto de Garita:**
-   - `[ ] Tiene citófono físico` ➔ Campo: *Número de Extensión / Citófono*.
-   - `[X] Teléfono Celular Principal` ➔ Campo: *Número móvil (10 dígitos)* (Indispensable para garita si no hay citófono).
-   - `[ ] Teléfono Fijo` ➔ Campo: *Número fijo local*.
-5. **Parqueaderos Privados Asignados:**
-   - Selector / etiquetas múltiples: Permite agregar una o varias bahías privadas pertenecientes a este predio (ej: `P-101`, `MOTO-05`).
+### 🖥️ Vista 3: Panel Lateral Derecho (Side Drawer) de Nuevo Inmueble
+* Despliegue lateral de 500px sin tapar el contexto, descartable con tecla `ESC` o botón de cierre.
+* **Sección de Parqueaderos Privados Asignados:**
+  * No muestra desplegables estáticos permanentes.
+  * Muestra la lista de celdas asignadas al predio con indicador visual táctico y botón `ELIMINAR`.
+  * Botón de acción: `ASIGNAR PARQUEADERO` que despliega un **sub-panel inferior interactivo**.
+  * **Sub-Panel Inferior de Celdas Disponibles:**
+    - Buscador en tiempo real por código (ej: `P-105`) o tipo (`Carro` / `Moto`).
+    - Listado con tarjetas tácticas de bahías disponibles (excluyendo celdas previamente asignadas).
+    - Al hacer clic en cualquier celda, esta **se asigna al inmueble y el sub-panel se cierra automáticamente**, regresando al formulario principal.
+    - Si el usuario requiere más celdas, puede pulsar nuevamente `ASIGNAR PARQUEADERO` repitiendo el flujo con las celdas restantes.
+  * Botón directo: `NUEVO PARQUEADERO` para dar de alta una bahía nueva en el momento si falta en el sistema y auto-asignarla.
 
 ---
 
 ## 4. Reglas de Negocio Inviolables (`RN-UN-XX`)
 
 * `RN-UN-01 [Unicidad de Nomenclatura]:` No puede existir más de un inmueble con el mismo número dentro de la misma Torre/Bloque.
-* `RN-UN-02 [Mínimo Canal de Comunicación]:` Todo inmueble debe registrar **al menos un canal de contacto activo** (Citófono/Extensión O Teléfono Celular). La portería no puede tener un inmueble aislado sin forma de comunicación.
-* `RN-UN-03 [Formato Celular]:` Si se especifica un número celular, debe cumplir con la validación de formato numérico estándar (ej. 10 dígitos para Colombia o código de país prefijado).
-* `RN-UN-04 [Parqueaderos Privados Exclusivos]:` Una misma celda o bahía de parqueadero privado no puede estar asignada simultáneamente a dos inmuebles distintos, salvo que se marque explícitamente como parqueadero compartido.
-* `RN-UN-05 [Inmutabilidad Histórica]:` Si un inmueble se desocupa o cambia de propietarios, **no se elimina el registro** del inmueble; se mantiene su estructura física y se desvinculan los residentes del censo.
-
----
-
-## 5. Casos Extremos y Excepciones Operativas (`FA-XX`)
-
-* **FA-01 [Inmueble sin Citófono Físico]:** En muchas unidades residenciales antiguas o en avería, los citófonos no funcionan. El sistema permite marcar el predio como *"Sin citófono"* y activa automáticamente el número celular como canal de discado / contacto prioritario desde la terminal de portería.
-* **FA-02 [Predio con Múltiples Parqueaderos Privados]:** Apartamentos penthouse o casas con 2 a 4 bahías (ej: 2 para carros y 1 para moto). El sistema permite asociar una lista de parqueaderos (`Vec<String>`).
-* **FA-03 [Predio sin Parqueadero Privado]:** Unidades de apartaestudios sin bahía asignada. El sistema valida `0` parqueaderos y no genera restricción.
-
----
-
-## 6. Modelo de Datos de Dominio (Rust Serde / SQL)
-
-```rust
-pub struct TowerBlock {
-    pub id: Uuid,
-    pub name: String, // ej: "Torre 1", "Bloque A"
-}
-
-pub struct ResidentialUnit {
-    pub id: Uuid,
-    pub tower_id: Uuid,
-    pub unit_number: String,       // ej: "302", "Casa 12"
-    pub unit_type: UnitType,       // Apartment, House, Commercial
-    pub intercom_extension: Option<String>, // Número de citófono físico
-    pub mobile_phone: Option<String>,       // Celular prioritario si no hay citófono
-    pub landline_phone: Option<String>,     // Fijo
-    pub private_parking_spots: Vec<String>, // ["P-302A", "P-302B"]
-    pub is_active: bool,
-}
-```
+* `RN-UN-02 [Mínimo Canal de Comunicación]:` Todo inmueble debe registrar al menos un canal de contacto activo (Citófono o Celular).
+* `RN-UN-04 [Parqueaderos Privados Exclusivos y Exclusión Reactiva]:`
+  - Un parqueadero solo puede ser asignado a **un único predio**.
+  - En el formulario de creación/edición, solo se listan para selección los parqueaderos con estado **`Disponible`**.
+  - **Exclusión reactiva inmediata en UI:** Tan pronto como una celda es elegida en el Option List, desaparece de las opciones desplegables del formulario. Si se remueve o el formulario se cancela, se restituye al pool de opciones disponibles.
+  - Al guardar la unidad, los parqueaderos seleccionados cambian permanentemente su estado a **`Asignado`** y quedan bloqueados para cualquier otra unidad.
+* `RN-UN-06 [Múltiples Parqueaderos]:` Un inmueble puede tener `0`, `1` o `N` parqueaderos privados asociados (ej. 2 carros + 1 moto).

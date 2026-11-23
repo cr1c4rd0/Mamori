@@ -23,6 +23,25 @@ pub struct TowerBlock {
     pub description: Option<String>,
 }
 
+/// Tipo de celda de parqueadero
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum ParkingType {
+    Car,        // Automóvil
+    Motorcycle, // Motocicleta
+    Bicycle,    // Bicicleta
+    Disabled,   // Movilidad reducida
+}
+
+/// Celda o bahía de parqueadero en la copropiedad
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ParkingSpot {
+    pub id: Uuid,
+    pub code: String,                     // ej: "P-101", "M-04"
+    pub parking_type: ParkingType,
+    pub assigned_unit_id: Option<Uuid>,   // None = Disponible, Some = Asignado a un inmueble
+    pub is_visitor: bool,                 // true = Uso exclusivo para visitas
+}
+
 /// Información completa de un predio o inmueble en la unidad residencial
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResidentialUnit {
@@ -31,7 +50,7 @@ pub struct ResidentialUnit {
     pub unit_number: String,               // ej: "302", "Casa 14"
     pub unit_type: UnitType,
     pub intercom_extension: Option<String>, // Número de citófono / extensión física
-    pub mobile_phone: Option<String>,       // Teléfono celular (prioritario si no hay citófono)
+    pub mobile_phone: Option<String>,       // Teléfono celular
     pub landline_phone: Option<String>,     // Teléfono fijo (opcional)
     pub private_parking_spots: Vec<String>, // Lista de celdas privadas asignadas (ej: ["P-101", "M-02"])
     pub is_active: bool,

@@ -1,4 +1,4 @@
-import { LineEdit, ScrollView } from "std-widgets.slint";
+import { LineEdit, ScrollView, ComboBox } from "std-widgets.slint";
 
 // ============================================================================
 // COMPONENTES TÁCTICOS CON ESTILO NEGRO PURO Y AUTO-AJUSTE DINÁMICO
@@ -40,7 +40,40 @@ component TacticalButton inherits Rectangle {
     }
 }
 
+// Botón de eliminar rojo táctico para filas de parqueaderos
+component DeleteButton inherits Rectangle {
+    callback clicked;
+
+    width: 90px;
+    height: 34px;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: del-touch.has-hover ? #ef4444 : #3f1515;
+    background: del-touch.has-hover ? #450a0a : #180909;
+
+    del-touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        alignment: center;
+        Text {
+            text: "ELIMINAR";
+            color: del-touch.has-hover ? #ffffff : #f87171;
+            font-size: 11px;
+            font-weight: 800;
+            vertical-alignment: center;
+        }
+    }
+}
+
 // Estructuras de datos para Slint
+export struct ParkingPickerItem {
+    code: string,
+    spot_type: string,
+    display_name: string,
+}
+
 export struct UnitItem {
     id: string,
     tower: string,
@@ -59,28 +92,52 @@ export struct TowerItem {
 }
 
 // ============================================================================
-// VENTANA PRINCIPAL — MAMORI BLACK EDITION CON VENTANA MODAL FLOTANTE
+// VENTANA PRINCIPAL — MAMORI BLACK EDITION
 // ============================================================================
 export component AppWindow inherits Window {
     title: "MAMORI — Terminal de Portería (Black Edition)";
-    preferred-width: 1150px;
-    preferred-height: 760px;
-    min-width: 950px;
-    min-height: 680px;
+    preferred-width: 1200px;
+    preferred-height: 780px;
+    min-width: 1000px;
+    min-height: 700px;
     background: #000000; // NEGRO PURO
 
     in-out property <string> active-module: "unidades";
     in-out property <string> status-text: "SISTEMA OPERATIVO | BASE DE DATOS LOCAL SINCRONIZADA";
     in-out property <string> selected-tower: "Torre 1";
-    in-out property <bool> show-modal: false;
+    in-out property <bool> show-drawer: false;
+    in-out property <bool> show-parking-modal: false;
+    in-out property <bool> show-parking-picker: false;
+    in-out property <string> parking-search-query: "";
+    in-out property <[ParkingPickerItem]> filtered-parking-options: [];
 
-    // Campos del formulario modal
+    // Campos del formulario inmueble
     in-out property <string> form-unit-number: "";
     in-out property <string> form-unit-type: "Apartamento";
     in-out property <string> form-intercom: "";
     in-out property <string> form-mobile: "";
     in-out property <string> form-landline: "";
-    in-out property <string> form-parking: "";
+
+    // Campos para crear nuevo parqueadero
+    in-out property <string> form-parking-code: "";
+    in-out property <string> form-parking-type: "Carro";
+
+    // Opciones disponibles para los ComboBox
+    in-out property <[string]> available-parking-options: [
+        "-- Seleccionar parqueadero --",
+        "P-104 (Carro)",
+        "P-105 (Carro)",
+        "P-106 (Carro)",
+        "P-107 (Carro)",
+        "M-01 (Moto)",
+        "M-02 (Moto)",
+        "M-03 (Moto)",
+        "M-04 (Moto)"
+    ];
+
+    // Lista dinámica de parqueaderos asignados al inmueble actual
+    in-out property <[string]> selected-parking-list: [];
+    in-out property <string> new-parking-selector-value: "-- Seleccionar parqueadero --";
 
     // Listas reactivas
     in-out property <[TowerItem]> towers: [
@@ -101,400 +158,863 @@ export component AppWindow inherits Window {
 
     callback quick-action(string);
     callback select-tower(string);
+    callback open-drawer();
+    callback cancel-drawer();
     callback save-unit();
+    callback open-parking-picker();
+    callback close-parking-picker();
+    callback search-parking(string);
+    callback pick-parking(string);
+    callback remove-parking-selection(int);
+    callback create-new-parking();
 
-    // ========================================================================
-    // CAPA BASE: VISTA PRINCIPAL
-    // ========================================================================
-    VerticalLayout {
-        padding: 14px;
-        spacing: 12px;
+    forward-focus: key-handler;
 
-        // 1. HEADER NEGRO PURO
-        Rectangle {
-            height: 58px;
-            background: #09090b;
-            border-radius: 8px;
-            border-width: 1px;
-            border-color: #18181b;
-
-            HorizontalLayout {
-                padding-left: 18px;
-                padding-right: 18px;
-                alignment: space-between;
-
-                HorizontalLayout {
-                    spacing: 12px;
-                    Text {
-                        text: "🛡️ MAMORI";
-                        color: #ffffff;
-                        font-size: 20px;
-                        font-weight: 900;
-                        vertical-alignment: center;
-                    }
-                    Text {
-                        text: "|  CONTROL DE ACCESO Y SEGURIDAD RESIDENCIAL";
-                        color: #52525b;
-                        font-size: 13px;
-                        font-weight: 600;
-                        vertical-alignment: center;
-                    }
+    key-handler := FocusScope {
+        key-pressed(event) => {
+            if (event.text == Key.Escape) {
+                if (root.show-parking-modal) {
+                    root.show-parking-modal = false;
+                    return accept;
                 }
-
-                HorizontalLayout {
-                    spacing: 10px;
-                    Rectangle {
-                        width: 8px;
-                        height: 8px;
-                        border-radius: 4px;
-                        background: #22c55e;
-                        y: 17px;
-                    }
-                    Text {
-                        text: root.status-text;
-                        color: #a1a1aa;
-                        font-size: 12px;
-                        font-weight: 600;
-                        vertical-alignment: center;
-                    }
+                if (root.show-parking-picker) {
+                    root.close-parking-picker();
+                    return accept;
+                }
+                if (root.show-drawer) {
+                    root.cancel-drawer();
+                    return accept;
                 }
             }
+            if (event.text == Key.F1) { root.quick-action("visita"); return accept; }
+            if (event.text == Key.F2) { root.quick-action("vehiculo"); return accept; }
+            if (event.text == Key.F3) { root.quick-action("paquete"); return accept; }
+            if (event.text == Key.F4) { root.quick-action("unidades"); return accept; }
+            if (event.text == Key.F5) { root.quick-action("minuta"); return accept; }
+            return reject;
         }
 
-        // 2. BARRA DE MÓDULOS CON AUTO-AJUSTE
-        Rectangle {
-            height: 50px;
-            background: #09090b;
-            border-radius: 8px;
-            border-width: 1px;
-            border-color: #18181b;
-
-            HorizontalLayout {
-                padding: 6px;
-                spacing: 8px;
-
-                TacticalButton {
-                    text: "[F1] VISITAS";
-                    h-stretch: 1;
-                    active: root.active-module == "visita";
-                    clicked => { root.quick-action("visita"); }
-                }
-                TacticalButton {
-                    text: "[F2] VEHÍCULOS";
-                    h-stretch: 1;
-                    active: root.active-module == "vehiculo";
-                    clicked => { root.quick-action("vehiculo"); }
-                }
-                TacticalButton {
-                    text: "[F3] PAQUETERÍA";
-                    h-stretch: 1;
-                    active: root.active-module == "paquete";
-                    clicked => { root.quick-action("paquete"); }
-                }
-                TacticalButton {
-                    text: "[F4] UNIDADES & PREDIOS";
-                    h-stretch: 1;
-                    active: root.active-module == "unidades";
-                    clicked => { root.quick-action("unidades"); }
-                }
-                TacticalButton {
-                    text: "[F5] MINUTA & NOVEDADES";
-                    h-stretch: 1;
-                    active: root.active-module == "minuta";
-                    clicked => { root.quick-action("minuta"); }
-                }
-            }
-        }
-
-        // 3. CUERPO PRINCIPAL: GESTIÓN DE UNIDADES
-        HorizontalLayout {
+        // ====================================================================
+        // CAPA BASE: VISTA PRINCIPAL
+        // ========================================================================
+        VerticalLayout {
+            padding: 14px;
             spacing: 12px;
 
-            // PANEL IZQUIERDO: TORRES Y BLOQUES
+            // 1. HEADER NEGRO PURO
             Rectangle {
-                width: 260px;
+                height: 58px;
                 background: #09090b;
                 border-radius: 8px;
                 border-width: 1px;
                 border-color: #18181b;
 
-                VerticalLayout {
-                    padding: 14px;
-                    spacing: 10px;
+                HorizontalLayout {
+                    padding-left: 18px;
+                    padding-right: 18px;
+                    alignment: space-between;
 
                     HorizontalLayout {
-                        alignment: space-between;
+                        spacing: 12px;
                         Text {
-                            text: "TORRES / BLOQUES";
-                            color: #71717a;
-                            font-size: 12px;
-                            font-weight: 800;
+                            text: "MAMORI";
+                            color: #ffffff;
+                            font-size: 20px;
+                            font-weight: 900;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            text: "|  CONTROL DE ACCESO Y SEGURIDAD RESIDENCIAL";
+                            color: #52525b;
+                            font-size: 13px;
+                            font-weight: 600;
                             vertical-alignment: center;
                         }
                     }
 
-                    Rectangle { height: 1px; background: #18181b; }
-
-                    for tower in root.towers: Rectangle {
-                        height: 48px;
-                        border-radius: 6px;
-                        border-width: 1px;
-                        border-color: root.selected-tower == tower.name ? #38bdf8 : #18181b;
-                        background: root.selected-tower == tower.name ? #111827 : (tower-touch.has-hover ? #141417 : #050507);
-
-                        tower-touch := TouchArea {
-                            clicked => {
-                                root.selected-tower = tower.name;
-                                root.select-tower(tower.name);
-                            }
+                    HorizontalLayout {
+                        spacing: 10px;
+                        Rectangle {
+                            width: 8px;
+                            height: 8px;
+                            border-radius: 4px;
+                            background: #22c55e;
+                            y: 17px;
                         }
-
-                        HorizontalLayout {
-                            padding-left: 14px;
-                            padding-right: 14px;
-                            alignment: space-between;
-
-                            Text {
-                                text: tower.name;
-                                color: root.selected-tower == tower.name ? #38bdf8 : #f4f4f5;
-                                font-size: 14px;
-                                font-weight: 700;
-                                vertical-alignment: center;
-                            }
-
-                            Rectangle {
-                                width: 68px;
-                                height: 22px;
-                                border-radius: 11px;
-                                background: #18181b;
-                                y: 13px;
-
-                                Text {
-                                    text: tower.unit_count + " aptos";
-                                    color: #a1a1aa;
-                                    font-size: 11px;
-                                    font-weight: 600;
-                                    horizontal-alignment: center;
-                                    vertical-alignment: center;
-                                }
-                            }
-                        }
-                    }
-
-                    Rectangle { height: 10px; }
-
-                    TacticalButton {
-                        text: "+ NUEVA TORRE / BLOQUE";
-                        h-stretch: 1;
-                        clicked => {
-                            root.status-text = "Iniciando creación de nueva torre...";
+                        Text {
+                            text: root.status-text;
+                            color: #a1a1aa;
+                            font-size: 12px;
+                            font-weight: 600;
+                            vertical-alignment: center;
                         }
                     }
                 }
             }
 
-            // PANEL DERECHO: DIRECTORIO DE INMUEBLES
+            // 2. BARRA DE MÓDULOS CON AUTO-AJUSTE
             Rectangle {
+                height: 50px;
                 background: #09090b;
                 border-radius: 8px;
                 border-width: 1px;
                 border-color: #18181b;
 
-                VerticalLayout {
-                    padding: 16px;
-                    spacing: 12px;
+                HorizontalLayout {
+                    padding: 6px;
+                    spacing: 8px;
 
-                    // Cabecera superior del panel de inmuebles
-                    HorizontalLayout {
-                        alignment: space-between;
+                    TacticalButton {
+                        text: "[F1] VISITAS";
+                        h-stretch: 1;
+                        active: root.active-module == "visita";
+                        clicked => { root.quick-action("visita"); }
+                    }
+                    TacticalButton {
+                        text: "[F2] VEHÍCULOS";
+                        h-stretch: 1;
+                        active: root.active-module == "vehiculo";
+                        clicked => { root.quick-action("vehiculo"); }
+                    }
+                    TacticalButton {
+                        text: "[F3] PAQUETERÍA";
+                        h-stretch: 1;
+                        active: root.active-module == "paquete";
+                        clicked => { root.quick-action("paquete"); }
+                    }
+                    TacticalButton {
+                        text: "[F4] UNIDADES & PREDIOS";
+                        h-stretch: 1;
+                        active: root.active-module == "unidades";
+                        clicked => { root.quick-action("unidades"); }
+                    }
+                    TacticalButton {
+                        text: "[F5] MINUTA & NOVEDADES";
+                        h-stretch: 1;
+                        active: root.active-module == "minuta";
+                        clicked => { root.quick-action("minuta"); }
+                    }
+                }
+            }
+
+            // 3. CUERPO PRINCIPAL: GESTIÓN DE UNIDADES
+            HorizontalLayout {
+                spacing: 12px;
+
+                // PANEL IZQUIERDO: TORRES Y PARQUEADEROS
+                Rectangle {
+                    width: 270px;
+                    background: #09090b;
+                    border-radius: 8px;
+                    border-width: 1px;
+                    border-color: #18181b;
+
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 10px;
 
                         HorizontalLayout {
-                            spacing: 12px;
+                            alignment: space-between;
                             Text {
-                                text: root.selected-tower;
-                                color: #ffffff;
-                                font-size: 18px;
+                                text: "TORRES / BLOQUES";
+                                color: #71717a;
+                                font-size: 12px;
                                 font-weight: 800;
                                 vertical-alignment: center;
                             }
-                            Text {
-                                text: "•  Directorio de Inmuebles Registrados";
-                                color: #71717a;
-                                font-size: 13px;
-                                font-weight: 600;
-                                vertical-alignment: center;
-                            }
                         }
 
-                        // BOTÓN QUE ABRE EL MODAL
-                        TacticalButton {
-                            text: "+ NUEVO INMUEBLE [MODAL]";
-                            primary: true;
-                            clicked => {
-                                root.show-modal = true;
-                            }
-                        }
-                    }
+                        Rectangle { height: 1px; background: #18181b; }
 
-                    Rectangle { height: 1px; background: #18181b; }
-
-                    // TABLA DE INMUEBLES LIMPIA Y ESPACIOSA
-                    VerticalLayout {
-                        spacing: 3px;
-
-                        // Cabecera de la Tabla
-                        Rectangle {
-                            height: 36px;
-                            background: #000000;
-                            border-radius: 4px;
+                        for tower in root.towers: Rectangle {
+                            height: 48px;
+                            border-radius: 6px;
                             border-width: 1px;
-                            border-color: #18181b;
+                            border-color: root.selected-tower == tower.name ? #38bdf8 : #18181b;
+                            background: root.selected-tower == tower.name ? #111827 : (tower-touch.has-hover ? #141417 : #050507);
+
+                            tower-touch := TouchArea {
+                                clicked => {
+                                    root.selected-tower = tower.name;
+                                    root.select-tower(tower.name);
+                                }
+                            }
 
                             HorizontalLayout {
                                 padding-left: 14px;
                                 padding-right: 14px;
+                                alignment: space-between;
 
-                                Text { text: "INMUEBLE"; width: 110px; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
-                                Text { text: "TIPO"; width: 120px; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
-                                Text { text: "CITÓFONO / EXT."; width: 140px; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
-                                Text { text: "CELULAR GARITA"; width: 140px; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
-                                Text { text: "TEL. FIJO"; width: 120px; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
-                                Text { text: "PARQUEADEROS PRIVADOS"; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
-                            }
-                        }
+                                Text {
+                                    text: tower.name;
+                                    color: root.selected-tower == tower.name ? #38bdf8 : #f4f4f5;
+                                    font-size: 14px;
+                                    font-weight: 700;
+                                    vertical-alignment: center;
+                                }
 
-                        // Filas de Inmuebles
-                        for unit in root.units: Rectangle {
-                            height: 42px;
-                            background: #050507;
-                            border-radius: 4px;
-                            border-width: 1px;
-                            border-color: #141417;
+                                Rectangle {
+                                    width: 68px;
+                                    height: 22px;
+                                    border-radius: 11px;
+                                    background: #18181b;
+                                    y: 13px;
 
-                            HorizontalLayout {
-                                padding-left: 14px;
-                                padding-right: 14px;
-
-                                Text { text: unit.unit-number; width: 110px; color: #ffffff; font-size: 13px; font-weight: 800; vertical-alignment: center; }
-                                Text { text: unit.unit-type; width: 120px; color: #a1a1aa; font-size: 13px; vertical-alignment: center; }
-                                
-                                HorizontalLayout {
-                                    width: 140px;
-                                    spacing: 6px;
-                                    Rectangle {
-                                        width: 6px;
-                                        height: 6px;
-                                        border-radius: 3px;
-                                        background: unit.intercom == "Sin citófono" ? #ef4444 : #22c55e;
-                                        y: 18px;
-                                    }
                                     Text {
-                                        text: unit.intercom;
-                                        color: unit.intercom == "Sin citófono" ? #f87171 : #4ade80;
-                                        font-size: 12px;
-                                        font-weight: 700;
+                                        text: tower.unit_count + " aptos";
+                                        color: #a1a1aa;
+                                        font-size: 11px;
+                                        font-weight: 600;
+                                        horizontal-alignment: center;
                                         vertical-alignment: center;
                                     }
                                 }
+                            }
+                        }
 
-                                Text { text: unit.mobile; width: 140px; color: #e4e4e7; font-size: 13px; font-weight: 600; vertical-alignment: center; }
-                                Text { text: unit.landline; width: 120px; color: #71717a; font-size: 13px; vertical-alignment: center; }
-                                
+                        Rectangle { height: 6px; }
+
+                        TacticalButton {
+                            text: "NUEVA TORRE / BLOQUE";
+                            h-stretch: 1;
+                            clicked => {
+                                root.status-text = "Iniciando creación de nueva torre...";
+                            }
+                        }
+
+                        Rectangle { height: 10px; }
+                        Rectangle { height: 1px; background: #18181b; }
+
+                        // SECCIÓN RÁPIDA: PARQUEADEROS
+                        Text {
+                            text: "PARQUEADEROS COPROPIEDAD";
+                            color: #71717a;
+                            font-size: 11px;
+                            font-weight: 800;
+                        }
+
+                        TacticalButton {
+                            text: "CREAR PARQUEADERO";
+                            h-stretch: 1;
+                            clicked => {
+                                root.show-parking-modal = true;
+                            }
+                        }
+                    }
+                }
+
+                // PANEL DERECHO: DIRECTORIO DE INMUEBLES
+                Rectangle {
+                    background: #09090b;
+                    border-radius: 8px;
+                    border-width: 1px;
+                    border-color: #18181b;
+
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 12px;
+
+                        HorizontalLayout {
+                            alignment: space-between;
+
+                            HorizontalLayout {
+                                spacing: 12px;
                                 Text {
-                                    text: unit.parking;
-                                    color: unit.parking == "Sin celda" ? #52525b : #38bdf8;
-                                    font-size: 13px;
-                                    font-weight: 700;
+                                    text: root.selected-tower;
+                                    color: #ffffff;
+                                    font-size: 18px;
+                                    font-weight: 800;
                                     vertical-alignment: center;
+                                }
+                                Text {
+                                    text: "•  Directorio de Inmuebles Registrados";
+                                    color: #71717a;
+                                    font-size: 13px;
+                                    font-weight: 600;
+                                    vertical-alignment: center;
+                                }
+                            }
+
+                            TacticalButton {
+                                text: "NUEVO INMUEBLE";
+                                primary: true;
+                                clicked => {
+                                    root.open-drawer();
+                                }
+                            }
+                        }
+
+                        Rectangle { height: 1px; background: #18181b; }
+
+                        // TABLA DE INMUEBLES
+                        VerticalLayout {
+                            spacing: 3px;
+
+                            Rectangle {
+                                height: 36px;
+                                background: #000000;
+                                border-radius: 4px;
+                                border-width: 1px;
+                                border-color: #18181b;
+
+                                HorizontalLayout {
+                                    padding-left: 14px;
+                                    padding-right: 14px;
+
+                                    Text { text: "INMUEBLE"; width: 110px; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: "TIPO"; width: 120px; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: "CITÓFONO / EXT."; width: 140px; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: "CELULAR"; width: 140px; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: "TEL. FIJO"; width: 120px; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: "PARQUEADEROS PRIVADOS"; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                                }
+                            }
+
+                            for unit in root.units: Rectangle {
+                                height: 42px;
+                                background: #050507;
+                                border-radius: 4px;
+                                border-width: 1px;
+                                border-color: #141417;
+
+                                HorizontalLayout {
+                                    padding-left: 14px;
+                                    padding-right: 14px;
+
+                                    Text { text: unit.unit-number; width: 110px; color: #ffffff; font-size: 13px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: unit.unit-type; width: 120px; color: #a1a1aa; font-size: 13px; vertical-alignment: center; }
+                                    
+                                    HorizontalLayout {
+                                        width: 140px;
+                                        spacing: 6px;
+                                        Rectangle {
+                                            width: 6px;
+                                            height: 6px;
+                                            border-radius: 3px;
+                                            background: unit.intercom == "Sin citófono" ? #ef4444 : #22c55e;
+                                            y: 18px;
+                                        }
+                                        Text {
+                                            text: unit.intercom;
+                                            color: unit.intercom == "Sin citófono" ? #f87171 : #4ade80;
+                                            font-size: 12px;
+                                            font-weight: 700;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+
+                                    Text { text: unit.mobile; width: 140px; color: #e4e4e7; font-size: 13px; font-weight: 600; vertical-alignment: center; }
+                                    Text { text: unit.landline; width: 120px; color: #71717a; font-size: 13px; vertical-alignment: center; }
+                                    
+                                    Text {
+                                        text: unit.parking;
+                                        color: unit.parking == "Sin celda" ? #52525b : #38bdf8;
+                                        font-size: 13px;
+                                        font-weight: 700;
+                                        vertical-alignment: center;
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-        }
 
-        // 4. FOOTER TÁCTICO INFERIOR
-        HorizontalLayout {
-            alignment: space-between;
-            Text {
-                text: "ATAJOS: [F4] UNIDADES | [INS] AGREGAR PREDIO | [ESC] CERRAR | CLIC EN TORRE PARA FILTRAR";
-                color: #52525b;
-                font-size: 11px;
-                font-weight: 700;
-            }
-            Text {
-                text: "MAMORI v0.1.0 — TRUE BLACK & MODAL OVERLAY (SLINT / RUST)";
-                color: #52525b;
-                font-size: 11px;
-                font-weight: 700;
+            // 4. FOOTER TÁCTICO INFERIOR
+            HorizontalLayout {
+                alignment: space-between;
+                Text {
+                    text: "ATAJOS: [F4] UNIDADES | [ESC] CERRAR PANEL | CLIC EN COMBOBOX PARA ASIGNAR PARQUEADEROS";
+                    color: #52525b;
+                    font-size: 11px;
+                    font-weight: 700;
+                }
+                Text {
+                    text: "MAMORI v0.1.0 — DYNAMIC COMBOBOX PARKING (SLINT / RUST)";
+                    color: #52525b;
+                    font-size: 11px;
+                    font-weight: 700;
+                }
             }
         }
     }
 
     // ========================================================================
-    // CAPA SUPERIOR: VENTANA MODAL FLOTANTE (OVERLAY TÁCTICO)
+    // CAPA LATERAL: PANEL DERECHO (DRAWER DE NUEVO INMUEBLE)
     // ========================================================================
-    if (root.show-modal): Rectangle {
-        // Fondo semi-transparente que oscurece el resto de la pantalla
-        background: #000000d9; // 85% opacidad negra
+    if (root.show-drawer): Rectangle {
         width: 100%;
         height: 100%;
+        background: #000000a6;
 
-        // Clic en el fondo oscuro para bloquear clics a la vista de abajo
         TouchArea {
-            clicked => { /* Absorbe clics externos */ }
+            clicked => { root.cancel-drawer(); }
         }
 
-        // TARJETA CENTRAL DE LA VENTANA MODAL
         Rectangle {
-            width: 620px;
-            height: 480px;
-            background: #09090b; // Negro profundo
-            border-radius: 12px;
+            x: parent.width - self.width;
+            y: 0;
+            width: 500px;
+            height: parent.height;
+            background: #09090b;
             border-width: 1px;
-            border-color: #27272a; // Borde gris sutil elegante
-            clip: true;
+            border-color: #27272a;
 
-            VerticalLayout {
-                padding: 24px;
-                spacing: 16px;
+            TouchArea {
+                clicked => { /* Absorbe clics internos */ }
+            }
 
-                // CABECERA DEL MODAL
-                HorizontalLayout {
-                    alignment: space-between;
-
-                    VerticalLayout {
-                        spacing: 2px;
-                        Text {
-                            text: "REGISTRAR NUEVO INMUEBLE";
-                            color: #ffffff;
-                            font-size: 17px;
-                            font-weight: 900;
+            drawer-scope := FocusScope {
+                key-pressed(event) => {
+                    if (event.text == Key.Escape) {
+                        if (root.show-parking-picker) {
+                            root.close-parking-picker();
+                            return accept;
                         }
-                        Text {
-                            text: "Asignando predio en: " + root.selected-tower;
-                            color: #38bdf8;
-                            font-size: 13px;
-                            font-weight: 600;
+                        root.cancel-drawer();
+                        return accept;
+                    }
+                    return reject;
+                }
+
+                VerticalLayout {
+                    padding: 22px;
+                    spacing: 14px;
+
+                    // CABECERA DEL PANEL
+                    HorizontalLayout {
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            spacing: 2px;
+                            Text {
+                                text: "NUEVO INMUEBLE";
+                                color: #ffffff;
+                                font-size: 18px;
+                                font-weight: 900;
+                            }
+                            Text {
+                                text: "Torre destino: " + root.selected-tower;
+                                color: #38bdf8;
+                                font-size: 13px;
+                                font-weight: 600;
+                            }
+                        }
+
+                        Rectangle {
+                            width: 32px;
+                            height: 32px;
+                            border-radius: 16px;
+                            background: close-touch.has-hover ? #27272a : #18181b;
+
+                            close-touch := TouchArea {
+                                clicked => { root.cancel-drawer(); }
+                            }
+
+                            Text {
+                                text: "✕";
+                                color: #a1a1aa;
+                                font-size: 14px;
+                                font-weight: 800;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
                         }
                     }
 
-                    // Botón cerrar modal [X]
-                    Rectangle {
-                        width: 32px;
-                        height: 32px;
-                        border-radius: 16px;
-                        background: close-touch.has-hover ? #27272a : #18181b;
+                    Rectangle { height: 1px; background: #18181b; }
 
-                        close-touch := TouchArea {
-                            clicked => { root.show-modal = false; }
+                    // CAMPOS BASE
+                    VerticalLayout {
+                        spacing: 12px;
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "NÚMERO DE INMUEBLE / PREDIO:"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
+                            LineEdit { text <=> root.form-unit-number; placeholder-text: "Ej: 301, 102A, Casa 15"; }
+                        }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "CITÓFONO / EXTENSIÓN FÍSICA:"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
+                            LineEdit { text <=> root.form-intercom; placeholder-text: "Ej: Ext. 301 o 'Sin citófono'"; }
+                        }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "CELULAR:"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
+                            LineEdit { text <=> root.form-mobile; placeholder-text: "Ej: 300 123 4567"; }
+                        }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: "TELÉFONO FIJO (OPCIONAL):"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
+                            LineEdit { text <=> root.form-landline; placeholder-text: "Ej: (604) 444 0000"; }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: #18181b; }
+
+                    // ========================================================
+                    // SECCIÓN DE PARQUEADEROS PRIVADOS ASIGNADOS
+                    // ========================================================
+                    VerticalLayout {
+                        spacing: 8px;
+
+                        HorizontalLayout {
+                            alignment: space-between;
+                            Text {
+                                text: "PARQUEADEROS PRIVADOS ASIGNADOS:";
+                                color: #38bdf8;
+                                font-size: 11px;
+                                font-weight: 800;
+                                vertical-alignment: center;
+                            }
+
+                            // Botón para crear nueva bahía en la copropiedad
+                            TouchArea {
+                                width: 140px;
+                                height: 24px;
+                                clicked => { root.show-parking-modal = true; }
+
+                                Text {
+                                    text: "NUEVO PARQUEADERO";
+                                    color: #22c55e;
+                                    font-size: 10px;
+                                    font-weight: 800;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        // Lista de celdas asignadas al inmueble
+                        if (root.selected-parking-list.length == 0): Rectangle {
+                            height: 38px;
+                            background: #050507;
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: #18181b;
+
+                            HorizontalLayout {
+                                padding-left: 14px;
+                                Text {
+                                    text: "Ningún parqueadero asignado a este predio";
+                                    color: #52525b;
+                                    font-size: 12px;
+                                    font-weight: 500;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        for spot-val[idx] in root.selected-parking-list: Rectangle {
+                            height: 38px;
+                            background: #050507;
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: #27272a;
+
+                            HorizontalLayout {
+                                padding-left: 12px;
+                                padding-right: 12px;
+                                alignment: space-between;
+
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    Rectangle {
+                                        width: 6px;
+                                        height: 6px;
+                                        border-radius: 3px;
+                                        background: #38bdf8;
+                                        y: 16px;
+                                    }
+                                    Text {
+                                        text: spot-val;
+                                        color: #ffffff;
+                                        font-size: 13px;
+                                        font-weight: 700;
+                                        vertical-alignment: center;
+                                    }
+                                }
+
+                                DeleteButton {
+                                    clicked => {
+                                        root.remove-parking-selection(idx);
+                                    }
+                                }
+                            }
+                        }
+
+                        // Botón para abrir el panel de asignación
+                        TacticalButton {
+                            text: "ASIGNAR PARQUEADERO";
+                            h-stretch: 1;
+                            font-size: 12px;
+                            active: root.show-parking-picker;
+                            clicked => {
+                                root.open-parking-picker();
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 10px; }
+                    Rectangle { height: 1px; background: #18181b; }
+
+                    // BOTONES DE ACCIÓN INFERIORES
+                    VerticalLayout {
+                        spacing: 8px;
+
+                        TacticalButton {
+                            text: "GUARDAR INMUEBLE";
+                            primary: true;
+                            h-stretch: 1;
+                            font-size: 13px;
+                            clicked => {
+                                root.save-unit();
+                            }
+                        }
+
+                        TacticalButton {
+                            text: "CANCELAR [ESC]";
+                            h-stretch: 1;
+                            font-size: 12px;
+                            clicked => {
+                                root.cancel-drawer();
+                            }
+                        }
+                    }
+                }
+
+                // ============================================================
+                // SUB-PANEL INFERIOR: BÚSQUEDA Y ASIGNACIÓN DE PARQUEADEROS
+                // ============================================================
+                if (root.show-parking-picker): Rectangle {
+                    x: 0;
+                    y: parent.height - self.height;
+                    width: parent.width;
+                    height: 440px;
+                    background: #09090b;
+                    border-width: 1px;
+                    border-color: #38bdf8;
+                    border-radius: 8px;
+
+                    TouchArea { clicked => { /* Absorbe clics internos */ } }
+
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 10px;
+
+                        // CABECERA
+                        HorizontalLayout {
+                            alignment: space-between;
+
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text {
+                                    text: "PARQUEADEROS DISPONIBLES";
+                                    color: #ffffff;
+                                    font-size: 14px;
+                                    font-weight: 900;
+                                }
+                                Text {
+                                    text: "Seleccione una celda para asignarla a este inmueble";
+                                    color: #a1a1aa;
+                                    font-size: 11px;
+                                    font-weight: 500;
+                                }
+                            }
+
+                            Rectangle {
+                                width: 28px;
+                                height: 28px;
+                                border-radius: 14px;
+                                background: picker-close-touch.has-hover ? #27272a : #18181b;
+
+                                picker-close-touch := TouchArea {
+                                    clicked => { root.close-parking-picker(); }
+                                }
+
+                                Text {
+                                    text: "✕";
+                                    color: #a1a1aa;
+                                    font-size: 13px;
+                                    font-weight: 800;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        Rectangle { height: 1px; background: #27272a; }
+
+                        // BUSCADOR EN TIEMPO REAL
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text {
+                                text: "BUSCADOR DE CELDAS:";
+                                color: #38bdf8;
+                                font-size: 10px;
+                                font-weight: 800;
+                            }
+                            LineEdit {
+                                text <=> root.parking-search-query;
+                                placeholder-text: "Buscar por código (ej: P-105) o tipo (Carro / Moto)...";
+                                edited(q) => {
+                                    root.search-parking(q);
+                                }
+                            }
+                        }
+
+                        // LISTA DE RESULTADOS
+                        if (root.filtered-parking-options.length == 0): Rectangle {
+                            height: 140px;
+                            background: #050507;
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: #18181b;
+
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 4px;
+                                Text {
+                                    text: "No se encontraron parqueaderos disponibles";
+                                    color: #a1a1aa;
+                                    font-size: 12px;
+                                    font-weight: 700;
+                                    horizontal-alignment: center;
+                                }
+                                Text {
+                                    text: "Verifique el término de búsqueda o cree una nueva bahía";
+                                    color: #52525b;
+                                    font-size: 11px;
+                                    horizontal-alignment: center;
+                                }
+                            }
+                        }
+
+                        if (root.filtered-parking-options.length > 0): ScrollView {
+                            height: 200px;
+                            VerticalLayout {
+                                spacing: 6px;
+                                for item in root.filtered-parking-options: Rectangle {
+                                    height: 40px;
+                                    background: spot-item-touch.has-hover ? #18181b : #050507;
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: spot-item-touch.has-hover ? #38bdf8 : #27272a;
+
+                                    spot-item-touch := TouchArea {
+                                        clicked => {
+                                            root.pick-parking(item.display-name);
+                                        }
+                                    }
+
+                                    HorizontalLayout {
+                                        padding-left: 14px;
+                                        padding-right: 14px;
+                                        alignment: space-between;
+
+                                        HorizontalLayout {
+                                            spacing: 10px;
+                                            Text {
+                                                text: item.code;
+                                                color: #ffffff;
+                                                font-size: 13px;
+                                                font-weight: 800;
+                                                vertical-alignment: center;
+                                            }
+                                            Rectangle {
+                                                width: 60px;
+                                                height: 20px;
+                                                border-radius: 4px;
+                                                background: item.spot-type == "Moto" ? #3b0764 : #0c4a6e;
+                                                border-width: 1px;
+                                                border-color: item.spot-type == "Moto" ? #a855f7 : #38bdf8;
+                                                y: 10px;
+
+                                                Text {
+                                                    text: item.spot-type;
+                                                    color: item.spot-type == "Moto" ? #d8b4fe : #7dd3fc;
+                                                    font-size: 10px;
+                                                    font-weight: 800;
+                                                    horizontal-alignment: center;
+                                                    vertical-alignment: center;
+                                                }
+                                            }
+                                        }
+
+                                        Text {
+                                            text: "ASIGNAR ↵";
+                                            color: spot-item-touch.has-hover ? #22c55e : #71717a;
+                                            font-size: 11px;
+                                            font-weight: 800;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        TacticalButton {
+                            text: "CERRAR LISTA [ESC]";
+                            h-stretch: 1;
+                            font-size: 11px;
+                            clicked => {
+                                root.close-parking-picker();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ========================================================================
+    // MODAL FLOTANTE: CREAR NUEVO PARQUEADERO EN LA COPROPIEDAD
+    // ========================================================================
+    if (root.show-parking-modal): Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #000000d0;
+
+        TouchArea {
+            clicked => { /* Evita clics al fondo */ }
+        }
+
+        Rectangle {
+            width: 420px;
+            height: 280px;
+            background: #09090b;
+            border-radius: 10px;
+            border-width: 1px;
+            border-color: #27272a;
+
+            VerticalLayout {
+                padding: 22px;
+                spacing: 14px;
+
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: "NUEVO PARQUEADERO";
+                        color: #ffffff;
+                        font-size: 16px;
+                        font-weight: 900;
+                    }
+                    Rectangle {
+                        width: 28px;
+                        height: 28px;
+                        border-radius: 14px;
+                        background: close-pk-touch.has-hover ? #27272a : #18181b;
+
+                        close-pk-touch := TouchArea {
+                            clicked => { root.show-parking-modal = false; }
                         }
 
                         Text {
                             text: "✕";
                             color: #a1a1aa;
-                            font-size: 14px;
+                            font-size: 13px;
                             font-weight: 800;
                             horizontal-alignment: center;
                             vertical-alignment: center;
@@ -504,71 +1024,51 @@ export component AppWindow inherits Window {
 
                 Rectangle { height: 1px; background: #18181b; }
 
-                // CAMPOS DEL FORMULARIO MODAL
                 VerticalLayout {
-                    spacing: 12px;
+                    spacing: 5px;
+                    Text { text: "CÓDIGO / IDENTIFICADOR DE BAHÍA:"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
+                    LineEdit { text <=> root.form-parking-code; placeholder-text: "Ej: P-107, Celda M-05"; }
+                }
 
-                    // Fila 1: Número de Predio y Tipo
+                VerticalLayout {
+                    spacing: 5px;
+                    Text { text: "TIPO DE VEHÍCULO:"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
                     HorizontalLayout {
-                        spacing: 12px;
-                        VerticalLayout {
-                            spacing: 5px;
-                            Text { text: "NÚMERO DE INMUEBLE / PREDIO:"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
-                            LineEdit { text <=> root.form-unit-number; placeholder-text: "Ej: 301, 102A, Casa 15"; }
+                        spacing: 8px;
+                        TacticalButton {
+                            text: "CARRO";
+                            h-stretch: 1;
+                            active: root.form-parking-type == "Carro";
+                            clicked => { root.form-parking-type = "Carro"; }
                         }
-                        VerticalLayout {
-                            spacing: 5px;
-                            Text { text: "CITÓFONO / EXTENSIÓN:"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
-                            LineEdit { text <=> root.form-intercom; placeholder-text: "Ej: Ext. 301 o 'Sin citófono'"; }
+                        TacticalButton {
+                            text: "MOTO";
+                            h-stretch: 1;
+                            active: root.form-parking-type == "Moto";
+                            clicked => { root.form-parking-type = "Moto"; }
                         }
-                    }
-
-                    // Fila 2: Celular principal y Teléfono Fijo
-                    HorizontalLayout {
-                        spacing: 12px;
-                        VerticalLayout {
-                            spacing: 5px;
-                            Text { text: "TELÉFONO CELULAR (CONTACTO GARITA):"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
-                            LineEdit { text <=> root.form-mobile; placeholder-text: "Ej: 300 123 4567"; }
-                        }
-                        VerticalLayout {
-                            spacing: 5px;
-                            Text { text: "TELÉFONO FIJO (OPCIONAL):"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
-                            LineEdit { text <=> root.form-landline; placeholder-text: "Ej: (604) 444 0000"; }
-                        }
-                    }
-
-                    // Fila 3: Parqueaderos Privados
-                    VerticalLayout {
-                        spacing: 5px;
-                        Text { text: "PARQUEADEROS PRIVADOS ASIGNADOS:"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
-                        LineEdit { text <=> root.form-parking; placeholder-text: "Ej: P-301, Celda Moto M-02 (Separados por coma)"; }
                     }
                 }
 
-                Rectangle { height: 6px; }
                 Rectangle { height: 1px; background: #18181b; }
 
-                // BOTONES DE ACCIÓN INFERIORES DEL MODAL
                 HorizontalLayout {
                     alignment: end;
-                    spacing: 12px;
+                    spacing: 10px;
 
                     TacticalButton {
-                        text: "CANCELAR [ESC]";
+                        text: "CANCELAR";
                         font-size: 12px;
-                        clicked => {
-                            root.show-modal = false;
-                        }
+                        clicked => { root.show-parking-modal = false; }
                     }
 
                     TacticalButton {
-                        text: "💾 GUARDAR INMUEBLE";
+                        text: "GUARDAR PARQUEADERO";
                         primary: true;
-                        font-size: 13px;
+                        font-size: 12px;
                         clicked => {
-                            root.save-unit();
-                            root.show-modal = false;
+                            root.create-new-parking();
+                            root.show-parking-modal = false;
                         }
                     }
                 }
