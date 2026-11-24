@@ -258,6 +258,58 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let selected_parking_model = Rc::new(VecModel::default());
     ui.set_selected_parking_list(selected_parking_model.clone().into());
 
+    // Callbacks de Autenticación (Login / Cerrar Sesión)
+    ui.on_attempt_login({
+        let ui_handle = ui.as_weak();
+        move || {
+            if let Some(ui) = ui_handle.upgrade() {
+                let username = ui.get_login_username().trim().to_lowercase();
+                let password = ui.get_login_password();
+
+                let auth_result = match (username.as_str(), password.as_str()) {
+                    ("porteria", "1234") => Some(("Cristian Ricardo Rojas", "Portería")),
+                    ("admin", "1234") => Some(("Cristian Ricardo Rojas", "Administrador")),
+                    _ => None,
+                };
+
+                if let Some((full_name, role)) = auth_result {
+                    tracing::info!("Sesión iniciada: {} ({})", full_name, role);
+                    ui.set_current_user_name(full_name.into());
+                    ui.set_current_user_role(role.into());
+                    ui.set_login_password("".into());
+                    ui.set_login_error("".into());
+                    ui.set_active_module("home".into());
+                    ui.set_current_view_title("DASHBOARD".into());
+                    ui.set_status_text("DASHBOARD".into());
+                    ui.set_is_authenticated(true);
+                } else {
+                    tracing::warn!("Intento de acceso fallido para usuario: {}", username);
+                    ui.set_login_error("Usuario o contraseña incorrectos.".into());
+                    ui.set_login_password("".into());
+                }
+            }
+        }
+    });
+
+    ui.on_logout({
+        let ui_handle = ui.as_weak();
+        move || {
+            if let Some(ui) = ui_handle.upgrade() {
+                tracing::info!("Sesión cerrada por el usuario.");
+                ui.set_show_drawer(false);
+                ui.set_show_parking_modal(false);
+                ui.set_show_parking_picker(false);
+                ui.set_show_resident_drawer(false);
+                ui.set_login_username("".into());
+                ui.set_login_password("".into());
+                ui.set_login_error("".into());
+                ui.set_active_module("home".into());
+                ui.set_current_view_title("DASHBOARD".into());
+                ui.set_is_authenticated(false);
+            }
+        }
+    });
+
     // Callbacks de navegación entre módulos
     ui.on_quick_action({
         let ui_handle = ui.as_weak();

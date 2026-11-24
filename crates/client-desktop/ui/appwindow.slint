@@ -1,4 +1,4 @@
-import { LineEdit, ScrollView, ComboBox } from "std-widgets.slint";
+﻿import { LineEdit, ScrollView, ComboBox } from "std-widgets.slint";
 
 // ============================================================================
 // SISTEMA DE TEMAS REACTIVO (OSCURO TRUE BLACK / CLARO)
@@ -316,6 +316,10 @@ export component AppWindow inherits Window {
     min-height: 700px;
     background: Theme.bg-window;
 
+    in-out property <bool> is-authenticated: false;
+    in-out property <string> login-username: "";
+    in-out property <string> login-password: "";
+    in-out property <string> login-error: "";
     in-out property <string> active-module: "home";
     in-out property <string> current-view-title: "DASHBOARD";
     property <color> current-module-color:
@@ -393,6 +397,8 @@ export component AppWindow inherits Window {
         { id: "u6", tower: "Torre 1", unit_number: "Apto 203", unit_type: "Apartamento", intercom: "Sin citófono", mobile: "301 222 1100", landline: "—", parking: "P-203" },
     ];
 
+    callback attempt-login();
+    callback logout();
     callback quick-action(string);
     callback select-tower(string);
     callback register-visit-exit(int);
@@ -415,6 +421,9 @@ export component AppWindow inherits Window {
 
     key-handler := FocusScope {
         key-pressed(event) => {
+            if (!root.is-authenticated) {
+                return reject;
+            }
             if (event.text == Key.Escape) {
                 if (root.show-parking-modal) {
                     root.show-parking-modal = false;
@@ -707,6 +716,43 @@ export component AppWindow inherits Window {
                                     color: Theme.text-muted;
                                     font-size: 10px;
                                     font-weight: 600;
+                                }
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    width: 112px;
+                                    height: 28px;
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: logout-touch.has-hover ? #ef4444 : #3f1515;
+                                    background: logout-touch.has-hover ? #450a0a : (Theme.dark-mode ? #180909 : #fef2f2);
+
+                                    logout-touch := TouchArea {
+                                        clicked => { root.logout(); }
+                                    }
+
+                                    HorizontalLayout {
+                                        spacing: 5px;
+                                        alignment: center;
+                                        VerticalLayout {
+                                            alignment: center;
+                                            Image {
+                                                source: @image-url("icons/log-out.svg");
+                                                width: 12px;
+                                                height: 12px;
+                                                colorize: logout-touch.has-hover ? #ffffff : #ef4444;
+                                            }
+                                        }
+                                        Text {
+                                            text: "CERRAR SESIÓN";
+                                            color: logout-touch.has-hover ? #ffffff : #ef4444;
+                                            font-size: 10px;
+                                            font-weight: 800;
+                                            vertical-alignment: center;
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1602,224 +1648,6 @@ export component AppWindow inherits Window {
                                             height: 44px;
                                             border-radius: 22px;
                                             background: #09090b;
-                                            border-width: 1px;
-                                            border-color: #38bdf8;
-
-                                            Image {
-                                                source: @image-url("icons/moon.svg");
-                                                width: 20px;
-                                                height: 20px;
-                                                colorize: #38bdf8;
-                                            }
-                                        }
-                                    }
-
-                                    VerticalLayout {
-                                        alignment: center;
-                                        spacing: 4px;
-                                        Text {
-                                            text: "MODO OSCURO (TRUE BLACK)";
-                                            color: Theme.dark-mode ? #ffffff : Theme.text-primary;
-                                            font-size: 14px;
-                                            font-weight: 900;
-                                        }
-                                        Text {
-                                            text: "Negro puro de alto contraste. Ideal para turnos nocturnos 24/7.";
-                                            color: Theme.dark-mode ? #bae6fd : Theme.text-muted;
-                                            font-size: 11px;
-                                            font-weight: 500;
-                                        }
-                                    }
-                                }
-                            }
-
-                            // TARJETA TEMA CLARO
-                            Rectangle {
-                                horizontal-stretch: 1;
-                                background: !Theme.dark-mode ? #e0f2fe : Theme.bg-surface;
-                                border-radius: 8px;
-                                border-width: !Theme.dark-mode ? 2px : 1px;
-                                border-color: !Theme.dark-mode ? #0284c7 : Theme.border-strong;
-
-                                light-card-touch := TouchArea {
-                                    clicked => {
-                                        Theme.dark-mode = false;
-                                        root.status-text = "Tema claro activado.";
-                                    }
-                                }
-
-                                HorizontalLayout {
-                                    padding: 18px;
-                                    spacing: 14px;
-                                    alignment: start;
-
-                                    VerticalLayout {
-                                        alignment: center;
-                                        Rectangle {
-                                            width: 44px;
-                                            height: 44px;
-                                            border-radius: 22px;
-                                            background: #ffffff;
-                                            border-width: 1px;
-                                            border-color: #f59e0b;
-
-                                            Image {
-                                                source: @image-url("icons/sun.svg");
-                                                width: 20px;
-                                                height: 20px;
-                                                colorize: #f59e0b;
-                                            }
-                                        }
-                                    }
-
-                                    VerticalLayout {
-                                        alignment: center;
-                                        spacing: 4px;
-                                        Text {
-                                            text: "MODO CLARO";
-                                            color: !Theme.dark-mode ? #0f172a : Theme.text-primary;
-                                            font-size: 14px;
-                                            font-weight: 900;
-                                        }
-                                        Text {
-                                            text: "Superficies claras de alta legibilidad para garitas con luz solar directa.";
-                                            color: !Theme.dark-mode ? #334155 : Theme.text-muted;
-                                            font-size: 11px;
-                                            font-weight: 500;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Rectangle { height: 1px; background: Theme.border-subtle; }
-
-                    // SECCIÓN: INFORMACIÓN DE LA TERMINAL
-                    VerticalLayout {
-                        vertical-stretch: 0;
-                        spacing: 8px;
-                        Text {
-                            text: "INFORMACIÓN DE LA TERMINAL";
-                            color: Theme.text-muted;
-                            font-size: 11px;
-                            font-weight: 800;
-                        }
-                        Rectangle {
-                            height: 68px;
-                            background: Theme.bg-surface;
-                            border-radius: 6px;
-                            border-width: 1px;
-                            border-color: Theme.border-subtle;
-
-                            HorizontalLayout {
-                                padding-left: 16px;
-                                padding-right: 16px;
-                                alignment: space-between;
-
-                                VerticalLayout {
-                                    alignment: center;
-                                    spacing: 2px;
-                                    Text { text: "Mamori Terminal Windows Nativa v0.1.0"; color: Theme.text-primary; font-size: 13px; font-weight: 800; }
-                                    Text { text: "Motor gráfico: Slint + Rust nativo | Tema activo: " + (Theme.dark-mode ? "Oscuro (True Black)" : "Claro"); color: Theme.text-muted; font-size: 11px; }
-                                }
-
-                                VerticalLayout {
-                                    alignment: center;
-                                    Text { text: root.current-user-name + " (" + root.current-user-role + ")"; color: #38bdf8; font-size: 12px; font-weight: 700; }
-                                }
-                            }
-                        }
-                    }
-
-                    Rectangle { vertical-stretch: 1; }
-                }
-            }
-
-            // ================================================================
-            // 3E. VISTAS EN CONSTRUCCIÓN (VISITAS, VEHÍCULOS, PAQUETERÍA, MINUTA)
-            // ================================================================
-            if (root.active-module != "home" && root.active-module != "unidades" && root.active-module != "residentes" && root.active-module != "config"): Rectangle {
-                vertical-stretch: 1;
-                background: Theme.bg-panel;
-                border-radius: 8px;
-                border-width: 1px;
-                border-color: Theme.border-subtle;
-
-                VerticalLayout {
-                    padding: 22px;
-                    spacing: 18px;
-
-                    // CABECERA
-                    HorizontalLayout {
-                        vertical-stretch: 0;
-                        spacing: 10px;
-                        VerticalLayout {
-                            alignment: center;
-                            Image { source: @image-url("icons/settings.svg"); width: 20px; height: 20px; colorize: #94a3b8; }
-                        }
-                        VerticalLayout {
-                            spacing: 2px;
-                            Text {
-                                text: "CONFIGURACIÓN DE LA APLICACIÓN";
-                                color: Theme.text-primary;
-                                font-size: 16px;
-                                font-weight: 900;
-                            }
-                            Text {
-                                text: "Personaliza la apariencia visual y preferencias de la terminal de portería";
-                                color: Theme.text-muted;
-                                font-size: 12px;
-                                font-weight: 500;
-                            }
-                        }
-                    }
-
-                    Rectangle { height: 1px; background: Theme.border-subtle; }
-
-                    // SECCIÓN: TEMA VISUAL
-                    VerticalLayout {
-                        vertical-stretch: 0;
-                        spacing: 10px;
-
-                        Text {
-                            text: "TEMA VISUAL";
-                            color: #38bdf8;
-                            font-size: 11px;
-                            font-weight: 800;
-                        }
-
-                        HorizontalLayout {
-                            spacing: 14px;
-                            height: 110px;
-
-                            // TARJETA TEMA OSCURO
-                            Rectangle {
-                                horizontal-stretch: 1;
-                                background: Theme.dark-mode ? #0c4a6e : Theme.bg-surface;
-                                border-radius: 8px;
-                                border-width: Theme.dark-mode ? 2px : 1px;
-                                border-color: Theme.dark-mode ? #38bdf8 : Theme.border-strong;
-
-                                dark-card-touch := TouchArea {
-                                    clicked => {
-                                        Theme.dark-mode = true;
-                                        root.status-text = "Tema oscuro (True Black) activado.";
-                                    }
-                                }
-
-                                HorizontalLayout {
-                                    padding: 18px;
-                                    spacing: 14px;
-                                    alignment: start;
-
-                                    VerticalLayout {
-                                        alignment: center;
-                                        Rectangle {
-                                            width: 44px;
-                                            height: 44px;
-                                            border-radius: 22px;
-                                            background: Theme.bg-panel;
                                             border-width: 1px;
                                             border-color: #38bdf8;
 
@@ -2869,6 +2697,152 @@ export component AppWindow inherits Window {
                             clicked => { root.cancel-resident-drawer(); }
                         }
                     }
+                }
+            }
+        }
+    }
+
+    // ========================================================================
+    // PANTALLA DE INICIO DE SESIÓN (LOGIN NATIVO)
+    // ========================================================================
+    if (!root.is-authenticated): Rectangle {
+        width: 100%;
+        height: 100%;
+        background: Theme.bg-window;
+
+        TouchArea { clicked => {} }
+
+        Rectangle {
+            width: 410px;
+            height: 440px;
+            background: Theme.bg-panel;
+            border-radius: 12px;
+            border-width: 1px;
+            border-color: Theme.border-strong;
+
+            VerticalLayout {
+                padding: 28px;
+                spacing: 16px;
+
+                // MARCA MAMORI
+                VerticalLayout {
+                    vertical-stretch: 0;
+                    spacing: 8px;
+                    alignment: center;
+
+                    HorizontalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 54px;
+                            height: 54px;
+                            border-radius: 27px;
+                            background: #0c4a6e;
+                            border-width: 1px;
+                            border-color: #38bdf8;
+
+                            Image {
+                                source: @image-url("icons/shield.svg");
+                                width: 26px;
+                                height: 26px;
+                                colorize: #38bdf8;
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: "MAMORI";
+                        color: Theme.text-primary;
+                        font-size: 24px;
+                        font-weight: 900;
+                        horizontal-alignment: center;
+                    }
+                    Text {
+                        text: "CONTROL DE ACCESO Y SEGURIDAD RESIDENCIAL";
+                        color: Theme.text-muted;
+                        font-size: 11px;
+                        font-weight: 700;
+                        horizontal-alignment: center;
+                    }
+                }
+
+                Rectangle { height: 1px; background: Theme.border-subtle; }
+
+                // CREDENCIALES
+                VerticalLayout {
+                    vertical-stretch: 0;
+                    spacing: 12px;
+
+                    VerticalLayout {
+                        vertical-stretch: 0;
+                        spacing: 4px;
+                        Text { text: "USUARIO:"; color: Theme.text-secondary; font-size: 11px; font-weight: 800; }
+                        LineEdit {
+                            height: 36px;
+                            vertical-stretch: 0;
+                            horizontal-stretch: 1;
+                            text <=> root.login-username;
+                            placeholder-text: "Ej: porteria o admin";
+                            accepted => { root.attempt-login(); }
+                        }
+                    }
+
+                    VerticalLayout {
+                        vertical-stretch: 0;
+                        spacing: 4px;
+                        Text { text: "CONTRASEÑA:"; color: Theme.text-secondary; font-size: 11px; font-weight: 800; }
+                        LineEdit {
+                            height: 36px;
+                            vertical-stretch: 0;
+                            horizontal-stretch: 1;
+                            input-type: password;
+                            text <=> root.login-password;
+                            placeholder-text: "Ingrese su contraseña";
+                            accepted => { root.attempt-login(); }
+                        }
+                    }
+                }
+
+                // MENSAJE DE ERROR
+                if (root.login-error != ""): Rectangle {
+                    vertical-stretch: 0;
+                    height: 34px;
+                    background: #450a0a;
+                    border-radius: 6px;
+                    border-width: 1px;
+                    border-color: #ef4444;
+
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        alignment: center;
+                        Text {
+                            text: root.login-error;
+                            color: #fca5a5;
+                            font-size: 11px;
+                            font-weight: 700;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                Rectangle { vertical-stretch: 1; }
+
+                TacticalButton {
+                    text: "INICIAR SESIÓN";
+                    icon: @image-url("icons/check.svg");
+                    has-icon: true;
+                    primary: true;
+                    h-stretch: 1;
+                    font-size: 13px;
+                    clicked => { root.attempt-login(); }
+                }
+
+                Text {
+                    text: "Terminal Nativa Windows • v0.1.0";
+                    color: Theme.text-faint;
+                    font-size: 10px;
+                    font-weight: 700;
+                    horizontal-alignment: center;
                 }
             }
         }
