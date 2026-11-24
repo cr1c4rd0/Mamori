@@ -42,3 +42,18 @@
   - El drawer se implementa como un `Rectangle` flotante anclado a la derecha con un backdrop oscuro transparente que intercepta clics fuera del área.
   - La captura de `Key.Escape` en `FocusScope` permite un control de teclado natural.
   - El listado dinámico de parqueaderos se conecta mediante un `VecModel<SharedString>` en Rust consumido por un `for spot-val[idx] in root.selected-parking-list` en Slint, combinado con callbacks bidireccionales (`on_add_parking_selection`, `on_change_parking_selection`, `on_remove_parking_selection`).
+
+---
+
+### [2026-11-24] Aprendizaje 07 — Ventana maximizada al iniciar en Slint (backend winit, Windows)
+- **Síntoma:** La terminal abría en 1200×780 (`preferred-width/height`) aunque se llamaba a `ui.window().set_maximized(true)`. `is_maximized()` devolvía `true`, pero el tamaño real no cambiaba.
+- **Causa:** Slint 1.19 guarda la bandera de maximizado; si la llamada ocurre antes de que exista la ventana nativa, Windows nunca la recibe y las llamadas posteriores se descartan porque Slint "cree" que ya está maximizada.
+- **Solución:** `ui.show()` y luego, con el bucle de eventos en marcha (`slint::Timer::single_shot`), alternar `set_maximized(false)` → `set_maximized(true)`. Verificado: 1920×1009 en monitor 1920×1080 (área útil sin barra de tareas). No es pantalla completa: conserva barra de título y barra de tareas.
+
+---
+
+### [2026-11-24] Aprendizaje 08 — Local-First con archivos JSON y servidor simulado distribuido (D-22 a D-26)
+- **Diseño:** Cada acción del vigilante guarda el registro completo en `estado_local.json` y deja el cambio en `cola_envio.json` (Outbox). En las ventanas 03/10/15/22 h se hace Push de la cola y luego Pull de los cambios de otros nodos. El servidor simulado es un log append-only (`log_cambios.jsonl`) compartido por varias terminales con bloqueo de archivo del SO (`File::lock`, Rust ≥ 1.89).
+- **Trampa evitada (orden de confirmación):** si la cola se vacía al confirmar el Push *antes* de aplicar el Pull, un cambio remoto del mismo registro ya no choca con nada y pisa la versión local, violando "gana la terminal" (D-24). Solución: confirmar (retirar de la cola) **después** de aplicar el Pull; la idempotencia por `change_id` del servidor hace seguro reenviar si algo falla a mitad. Cubierto por el test `dos_terminales_se_sincronizan_y_gana_la_terminal`.
+- **Slint:** para refrescar listas desde un hilo de fondo se usa `slint::invoke_from_event_loop` + `ModelRc::as_any().downcast_ref::<VecModel<T>>()`, así las callbacks conservan su referencia al mismo modelo. `rotation-angle` está obsoleto: usar `transform-rotation` (+ `animation-tick()` para el giro del icono).
+- **Prueba manual:** `MAMORI_SYNC_INTERVAL_SECS=10` acelera las ventanas; crear el archivo `SIN_CONEXION` en la carpeta del servidor simula caída de internet; dos instancias con distinto `MAMORI_DATA_DIR` simulan dos porterías.

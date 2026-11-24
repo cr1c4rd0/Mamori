@@ -1,0 +1,44 @@
+{
+  "units": [
+    { "id": "u1", "tower": "Torre 1", "unit_number": "Apto 101", "unit_type": "Apartamento", "intercom": "Ext. 101", "mobile": "300 123 4567", "landline": "(604) 444 0001", "parking": ["P-101"] },
+    { "id": "u2", "tower": "Torre 1", "unit_number": "Apto 102", "unit_type": "Apartamento", "intercom": null, "mobile": "315 987 6543", "landline": null, "parking": ["P-102", "P-102B"] },
+    { "id": "u3", "tower": "Torre 1", "unit_number": "Apto 103", "unit_type": "Apartamento", "intercom": "Ext. 103", "mobile": "311 555 8899", "landline": null, "parking": [] },
+    { "id": "u4", "tower": "Torre 1", "unit_number": "Apto 201", "unit_type": "Apartamento", "intercom": "Ext. 201", "mobile": "310 444 3322", "landline": "(604) 444 0004", "parking": ["P-201"] },
+    { "id": "u5", "tower": "Torre 1", "unit_number": "Apto 202", "unit_type": "Apartamento", "intercom": "Ext. 202", "mobile": "318 777 6655", "landline": null, "parking": ["P-202"] },
+    { "id": "u6", "tower": "Torre 1", "unit_number": "Apto 203", "unit_type": "Apartamento", "intercom": null, "mobile": "301 222 1100", "landline": null, "parking": ["P-203"] }
+  ],
+  "parking_spots": [
+    { "code": "P-101", "spot_type": "Carro", "assigned_unit_id": "u1" },
+    { "code": "P-102", "spot_type": "Carro", "assigned_unit_id": "u2" },
+    { "code": "P-102B", "spot_type": "Carro", "assigned_unit_id": "u2" },
+    { "code": "P-201", "spot_type": "Carro", "assigned_unit_id": "u4" },
+    { "code": "P-202", "spot_type": "Carro", "assigned_unit_id": "u5" },
+    { "code": "P-203", "spot_type": "Carro", "assigned_unit_id": "u6" },
+    { "code": "P-104", "spot_type": "Carro", "assigned_unit_id": null },
+    { "code": "P-105", "spot_type": "Carro", "assigned_unit_id": null },
+    { "code": "P-106", "spot_type": "Carro", "assigned_unit_id": null },
+    { "code": "P-107", "spot_type": "Carro", "assigned_unit_id": null },
+    { "code": "M-01", "spot_type": "Moto", "assigned_unit_id": null },
+    { "code": "M-02", "spot_type": "Moto", "assigned_unit_id": null },
+    { "code": "M-03", "spot_type": "Moto", "assigned_unit_id": null },
+    { "code": "M-04", "spot_type": "Moto", "assigned_unit_id": null }
+  ],
+  "residents": [
+    { "id": "r1", "full_name": "Mateo Restrepo Cano", "document": "CC 1.017.112.450", "units": ["Torre 1 - Apto 102"], "role": "Propietario", "mobile": "315 987 6543", "email": "mateo.restrepo@correo.com" },
+    { "id": "r2", "full_name": "Ana María Salazar Vélez", "document": "CC 43.876.512", "units": ["Torre 1 - Apto 201"], "role": "Propietario", "mobile": "310 444 3322", "email": "ana.salazar@correo.com" },
+    { "id": "r3", "full_name": "Felipe Londoño Arias", "document": "CC 1.036.654.890", "units": ["Torre 2 - Apto 104"], "role": "Arrendatario", "mobile": "318 777 6655", "email": "felipe.londono@correo.com" },
+    { "id": "r4", "full_name": "Carolina Vélez Gómez", "document": "CC 1.020.445.321", "units": ["Manzana A - Casa 12"], "role": "Familiar", "mobile": "301 222 1100", "email": "carolina.velez@correo.com" }
+  ],
+  "visits": [
+    { "id": "v1", "visitor_name": "Carlos Andrés Ramírez", "document": "CC 1.017.234.567", "destination": "Torre 1 - Apto 101", "access_type": "Vehicular (KLM-482)", "entry_at": "2026-11-24T21:45:00Z", "exit_at": null },
+    { "id": "v2", "visitor_name": "Laura Sofía Mendoza", "document": "CC 1.036.890.112", "destination": "Torre 1 - Apto 202", "access_type": "Peatonal", "entry_at": "2026-11-24T22:02:00Z", "exit_at": null },
+    { "id": "v3", "visitor_name": "Jorge Eliécer Ospina (Técnico)", "document": "CC 71.543.210", "destination": "Torre 2 - Apto 405", "access_type": "Peatonal", "entry_at": "2026-11-24T22:15:00Z", "exit_at": null },
+    { "id": "v4", "visitor_name": "Diana Patricia Gómez", "document": "CC 43.912.654", "destination": "Bloque Norte - Apto 301", "access_type": "Vehicular (FTR-910)", "entry_at": "2026-11-24T22:28:00Z", "exit_at": null }
+  ],
+  "packages": [
+    { "id": "pk1", "destination": "Torre 1 - Apto 102", "recipient": "Mateo Restrepo", "carrier": "Mercado Libre", "description": "Caja mediana • Guía ML-8841", "received_at": "2026-11-24T19:20:00Z", "delivered_at": null },
+    { "id": "pk2", "destination": "Torre 1 - Apto 201", "recipient": "Ana María Salazar", "carrier": "Amazon", "description": "Sobre acolchado • Prioritario", "received_at": "2026-11-24T20:05:00Z", "delivered_at": null },
+    { "id": "pk3", "destination": "Torre 2 - Apto 104", "recipient": "Felipe Londoño", "carrier": "Servientrega", "description": "Paquete frágil • Guía SV-3390", "received_at": "2026-11-24T21:10:00Z", "delivered_at": null },
+    { "id": "pk4", "destination": "Manzana A - Casa 12", "recipient": "Carolina Vélez", "carrier": "Coordinadora", "description": "Caja grande • Casillero B2", "received_at": "2026-11-24T22:18:00Z", "delivered_at": null }
+  ]
+}

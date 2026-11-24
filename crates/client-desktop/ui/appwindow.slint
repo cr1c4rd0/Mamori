@@ -364,6 +364,14 @@ export component AppWindow inherits Window {
     in-out property <bool> sidebar-collapsed: false;
     in-out property <string> current-user-name: "Cristian Ricardo Rojas";
     in-out property <string> current-user-role: "Portería";
+    // Indicador de sincronización (D-26): syncing | ok | never | error
+    in property <string> sync-state: "never";
+    in property <string> sync-title: "ÚLTIMA SINCRONIZACIÓN";
+    in property <string> sync-detail: "Nunca";
+    property <color> sync-color: root.sync-state == "syncing" ? #38bdf8
+        : root.sync-state == "ok" ? #4ade80
+        : root.sync-state == "error" ? #f87171
+        : Theme.text-muted;
     in-out property <string> status-text: "DASHBOARD";
     in-out property <[ActiveVisitItem]> active-visits: [];
     in-out property <[PendingPackageItem]> pending-packages: [];
@@ -771,6 +779,50 @@ export component AppWindow inherits Window {
                                     text: root.current-user-role;
                                     color: Theme.text-muted;
                                     font-size: 10px;
+                                    font-weight: 600;
+                                }
+                            }
+
+                            // Indicador de sincronización con el servidor (D-26)
+                            VerticalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    width: 1px;
+                                    height: 24px;
+                                    background: Theme.border-strong;
+                                }
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                Image {
+                                    source: root.sync-state == "error"
+                                        ? @image-url("icons/alert-circle.svg")
+                                        : @image-url("icons/refresh-cw.svg");
+                                    width: 15px;
+                                    height: 15px;
+                                    colorize: root.sync-color;
+                                    transform-rotation: root.sync-state == "syncing"
+                                        ? (animation-tick() / 1ms) * 0.36deg
+                                        : 0deg;
+                                }
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 1px;
+                                // Ancho fijo: el encabezado no "salta" al cambiar el texto del estado
+                                width: 175px;
+                                Text {
+                                    text: root.sync-title;
+                                    color: root.sync-color;
+                                    font-size: 10px;
+                                    font-weight: 800;
+                                }
+                                Text {
+                                    text: root.sync-detail;
+                                    color: Theme.text-secondary;
+                                    font-size: 11px;
                                     font-weight: 600;
                                 }
                             }
