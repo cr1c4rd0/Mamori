@@ -33,13 +33,21 @@ component TacticalButton inherits Rectangle {
     in property <int> h-stretch: 0;
     callback clicked;
 
+    property <color> fg-color: Theme.dark-mode
+        ? (root.active ? #ffffff : (root.primary ? #4ade80 : (touch.has-hover ? Theme.text-primary : Theme.text-secondary)))
+        : (root.active ? #0369a1 : (root.primary ? #15803d : (touch.has-hover ? #0f172a : #334155)));
+
     horizontal-stretch: root.h-stretch;
     height: 38px;
     min-width: txt.min-width + (root.has-icon ? 44px : 24px);
     border-radius: 6px;
-    border-width: 1px;
-    border-color: root.active ? #38bdf8 : (root.primary ? #22c55e : (touch.has-hover ? #3f3f46 : Theme.border-strong));
-    background: root.active ? #0c4a6e : (root.primary ? #14532d : (touch.has-hover ? Theme.bg-hover : Theme.bg-panel));
+    border-width: Theme.dark-mode ? 1px : 1.5px;
+    border-color: Theme.dark-mode
+        ? (root.active ? #38bdf8 : (root.primary ? #22c55e : (touch.has-hover ? #3f3f46 : Theme.border-strong)))
+        : (root.active ? #0284c7 : (root.primary ? #16a34a : (touch.has-hover ? #64748b : #cbd5e1)));
+    background: Theme.dark-mode
+        ? (root.active ? #0c4a6e : (root.primary ? #14532d : (touch.has-hover ? Theme.bg-hover : Theme.bg-panel)))
+        : (root.active ? (touch.has-hover ? #e0f2fe : transparent) : (root.primary ? (touch.has-hover ? #dcfce7 : transparent) : (touch.has-hover ? #f1f5f9 : transparent)));
 
     touch := TouchArea {
         clicked => { root.clicked(); }
@@ -57,13 +65,13 @@ component TacticalButton inherits Rectangle {
                 source: root.icon;
                 width: 15px;
                 height: 15px;
-                colorize: root.active ? #ffffff : (root.primary ? #4ade80 : (touch.has-hover ? Theme.text-primary : Theme.text-secondary));
+                colorize: root.fg-color;
             }
         }
 
         txt := Text {
             text: root.text;
-            color: root.active ? #ffffff : (root.primary ? #4ade80 : (touch.has-hover ? Theme.text-primary : Theme.text-secondary));
+            color: root.fg-color;
             font-size: root.font-size;
             font-weight: 700;
             vertical-alignment: center;
@@ -72,16 +80,24 @@ component TacticalButton inherits Rectangle {
     }
 }
 
-// Botón de eliminar rojo táctico para filas de parqueaderos
+// Botón de eliminar rojo táctico para filas de parqueaderos (outline en modo claro)
 component DeleteButton inherits Rectangle {
     callback clicked;
+
+    property <color> fg-color: Theme.dark-mode
+        ? (del-touch.has-hover ? #ffffff : #f87171)
+        : #dc2626;
 
     width: 84px;
     height: 24px;
     border-radius: 4px;
-    border-width: 1px;
-    border-color: del-touch.has-hover ? #ef4444 : #3f1515;
-    background: del-touch.has-hover ? #450a0a : #180909;
+    border-width: Theme.dark-mode ? 1px : 1.5px;
+    border-color: Theme.dark-mode
+        ? (del-touch.has-hover ? #ef4444 : #3f1515)
+        : #dc2626;
+    background: Theme.dark-mode
+        ? (del-touch.has-hover ? #450a0a : #180909)
+        : (del-touch.has-hover ? #fee2e2 : transparent);
 
     del-touch := TouchArea {
         clicked => { root.clicked(); }
@@ -96,12 +112,12 @@ component DeleteButton inherits Rectangle {
                 source: @image-url("icons/trash-2.svg");
                 width: 12px;
                 height: 12px;
-                colorize: del-touch.has-hover ? #ffffff : #f87171;
+                colorize: root.fg-color;
             }
         }
         Text {
             text: "ELIMINAR";
-            color: del-touch.has-hover ? #ffffff : #f87171;
+            color: root.fg-color;
             font-size: 10px;
             font-weight: 800;
             vertical-alignment: center;
@@ -109,7 +125,7 @@ component DeleteButton inherits Rectangle {
     }
 }
 
-// Botón de acción compacto para filas del dashboard (Dar salida / Entregar)
+// Botón de acción compacto para filas del dashboard (outline en modo claro)
 component CompactActionButton inherits Rectangle {
     in property <string> text;
     in property <image> icon;
@@ -117,16 +133,20 @@ component CompactActionButton inherits Rectangle {
     in property <bool> positive: false;
     callback clicked;
 
+    property <color> fg-color: Theme.dark-mode
+        ? (btn-touch.has-hover ? #ffffff : (root.positive ? #4ade80 : #7dd3fc))
+        : (root.positive ? #15803d : #0369a1);
+
     height: 26px;
     min-width: txt.min-width + (root.has-icon ? 32px : 18px);
     border-radius: 4px;
-    border-width: 1px;
-    border-color: root.positive
-        ? (btn-touch.has-hover ? #22c55e : #14532d)
-        : (btn-touch.has-hover ? #38bdf8 : #1e3a5f);
-    background: root.positive
-        ? (btn-touch.has-hover ? #14532d : #052e16)
-        : (btn-touch.has-hover ? #0c4a6e : #082f49);
+    border-width: Theme.dark-mode ? 1px : 1.5px;
+    border-color: Theme.dark-mode
+        ? (root.positive ? (btn-touch.has-hover ? #22c55e : #14532d) : (btn-touch.has-hover ? #38bdf8 : #1e3a5f))
+        : (root.positive ? #16a34a : #0284c7);
+    background: Theme.dark-mode
+        ? (root.positive ? (btn-touch.has-hover ? #14532d : #052e16) : (btn-touch.has-hover ? #0c4a6e : #082f49))
+        : (root.positive ? (btn-touch.has-hover ? #dcfce7 : transparent) : (btn-touch.has-hover ? #e0f2fe : transparent));
 
     btn-touch := TouchArea {
         clicked => { root.clicked(); }
@@ -143,12 +163,12 @@ component CompactActionButton inherits Rectangle {
                 source: root.icon;
                 width: 12px;
                 height: 12px;
-                colorize: btn-touch.has-hover ? #ffffff : (root.positive ? #4ade80 : #7dd3fc);
+                colorize: root.fg-color;
             }
         }
         txt := Text {
             text: root.text;
-            color: btn-touch.has-hover ? #ffffff : (root.positive ? #4ade80 : #7dd3fc);
+            color: root.fg-color;
             font-size: 10px;
             font-weight: 800;
             vertical-alignment: center;
@@ -230,7 +250,7 @@ component SidebarNavItem inherits Rectangle {
             }
         }
 
-        if (!root.collapsed): VerticalLayout {
+        if (!root.collapsed && root.shortcut != ""): VerticalLayout {
             alignment: center;
             Rectangle {
                 width: 26px;
@@ -605,6 +625,17 @@ export component AppWindow inherits Window {
                             clicked => { root.quick-action("config"); }
                         }
 
+                        SidebarNavItem {
+                            icon: @image-url("icons/log-out.svg");
+                            shortcut: "";
+                            label: "CERRAR SESIÓN";
+                            accent-color: #ef4444;
+                            accent-bg: #450a0a;
+                            active: false;
+                            collapsed: root.sidebar-collapsed;
+                            clicked => { root.logout(); }
+                        }
+
                         if (!root.sidebar-collapsed): Text {
                             text: "MAMORI PORTERÍA v0.1.0";
                             color: Theme.text-faint;
@@ -717,43 +748,6 @@ export component AppWindow inherits Window {
                                     color: Theme.text-muted;
                                     font-size: 10px;
                                     font-weight: 600;
-                                }
-                            }
-
-                            VerticalLayout {
-                                alignment: center;
-                                Rectangle {
-                                    width: 112px;
-                                    height: 28px;
-                                    border-radius: 6px;
-                                    border-width: 1px;
-                                    border-color: logout-touch.has-hover ? #ef4444 : #3f1515;
-                                    background: logout-touch.has-hover ? #450a0a : (Theme.dark-mode ? #180909 : #fef2f2);
-
-                                    logout-touch := TouchArea {
-                                        clicked => { root.logout(); }
-                                    }
-
-                                    HorizontalLayout {
-                                        spacing: 5px;
-                                        alignment: center;
-                                        VerticalLayout {
-                                            alignment: center;
-                                            Image {
-                                                source: @image-url("icons/log-out.svg");
-                                                width: 12px;
-                                                height: 12px;
-                                                colorize: logout-touch.has-hover ? #ffffff : #ef4444;
-                                            }
-                                        }
-                                        Text {
-                                            text: "CERRAR SESIÓN";
-                                            color: logout-touch.has-hover ? #ffffff : #ef4444;
-                                            font-size: 10px;
-                                            font-weight: 800;
-                                            vertical-alignment: center;
-                                        }
-                                    }
                                 }
                             }
                         }
