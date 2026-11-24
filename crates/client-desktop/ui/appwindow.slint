@@ -1,7 +1,26 @@
 import { LineEdit, ScrollView, ComboBox } from "std-widgets.slint";
 
 // ============================================================================
-// COMPONENTES TÁCTICOS CON ESTILO NEGRO PURO Y AUTO-AJUSTE DINÁMICO
+// SISTEMA DE TEMAS REACTIVO (OSCURO TRUE BLACK / CLARO)
+// ============================================================================
+global Theme {
+    in-out property <bool> dark-mode: true;
+
+    out property <color> bg-window: root.dark-mode ? #000000 : #f1f5f9;
+    out property <color> bg-panel: root.dark-mode ? #09090b : #ffffff;
+    out property <color> bg-surface: root.dark-mode ? #050507 : #f8fafc;
+    out property <color> bg-hover: root.dark-mode ? #18181b : #e2e8f0;
+    out property <color> bg-elevated: root.dark-mode ? #18181b : #f1f5f9;
+    out property <color> border-subtle: root.dark-mode ? #18181b : #e2e8f0;
+    out property <color> border-strong: root.dark-mode ? #27272a : #cbd5e1;
+    out property <color> text-primary: root.dark-mode ? #ffffff : #0f172a;
+    out property <color> text-secondary: root.dark-mode ? #a1a1aa : #475569;
+    out property <color> text-muted: root.dark-mode ? #71717a : #64748b;
+    out property <color> text-faint: root.dark-mode ? #52525b : #94a3b8;
+}
+
+// ============================================================================
+// COMPONENTES TÁCTICOS CON ESTILO ADAPTATIVO Y AUTO-AJUSTE DINÁMICO
 // ============================================================================
 
 component TacticalButton inherits Rectangle {
@@ -19,8 +38,8 @@ component TacticalButton inherits Rectangle {
     min-width: txt.min-width + (root.has-icon ? 44px : 24px);
     border-radius: 6px;
     border-width: 1px;
-    border-color: root.active ? #38bdf8 : (root.primary ? #22c55e : (touch.has-hover ? #3f3f46 : #27272a));
-    background: root.active ? #0c4a6e : (root.primary ? #14532d : (touch.has-hover ? #18181b : #09090b));
+    border-color: root.active ? #38bdf8 : (root.primary ? #22c55e : (touch.has-hover ? #3f3f46 : Theme.border-strong));
+    background: root.active ? #0c4a6e : (root.primary ? #14532d : (touch.has-hover ? Theme.bg-hover : Theme.bg-panel));
 
     touch := TouchArea {
         clicked => { root.clicked(); }
@@ -38,13 +57,13 @@ component TacticalButton inherits Rectangle {
                 source: root.icon;
                 width: 15px;
                 height: 15px;
-                colorize: root.active ? #ffffff : (root.primary ? #4ade80 : (touch.has-hover ? #fafafa : #a1a1aa));
+                colorize: root.active ? #ffffff : (root.primary ? #4ade80 : (touch.has-hover ? Theme.text-primary : Theme.text-secondary));
             }
         }
 
         txt := Text {
             text: root.text;
-            color: root.active ? #ffffff : (root.primary ? #4ade80 : (touch.has-hover ? #fafafa : #a1a1aa));
+            color: root.active ? #ffffff : (root.primary ? #4ade80 : (touch.has-hover ? Theme.text-primary : Theme.text-secondary));
             font-size: root.font-size;
             font-weight: 700;
             vertical-alignment: center;
@@ -144,9 +163,9 @@ component HamburgerButton inherits Rectangle {
     width: 34px;
     height: 34px;
     border-radius: 6px;
-    background: hb-touch.has-hover ? #27272a : #18181b;
+    background: hb-touch.has-hover ? Theme.bg-hover : Theme.bg-elevated;
     border-width: 1px;
-    border-color: hb-touch.has-hover ? #38bdf8 : #27272a;
+    border-color: hb-touch.has-hover ? #38bdf8 : Theme.border-strong;
 
     hb-touch := TouchArea {
         clicked => { root.clicked(); }
@@ -156,15 +175,17 @@ component HamburgerButton inherits Rectangle {
         source: @image-url("icons/menu.svg");
         width: 18px;
         height: 18px;
-        colorize: hb-touch.has-hover ? #ffffff : #a1a1aa;
+        colorize: hb-touch.has-hover ? Theme.text-primary : Theme.text-secondary;
     }
 }
 
-// Ítem de navegación para el panel lateral izquierdo colapsable (con iconos Lucide SVG)
+// Ítem de navegación para el panel lateral izquierdo colapsable (con color por módulo e iconos Lucide SVG)
 component SidebarNavItem inherits Rectangle {
     in property <image> icon;
     in property <string> shortcut;
     in property <string> label;
+    in property <color> accent-color: #38bdf8;
+    in property <color> accent-bg: #0c4a6e;
     in property <bool> active: false;
     in property <bool> collapsed: false;
     callback clicked;
@@ -172,8 +193,8 @@ component SidebarNavItem inherits Rectangle {
     height: 40px;
     border-radius: 6px;
     border-width: 1px;
-    border-color: root.active ? #38bdf8 : (nav-touch.has-hover ? #3f3f46 : transparent);
-    background: root.active ? #0c4a6e : (nav-touch.has-hover ? #18181b : transparent);
+    border-color: root.active ? root.accent-color : (nav-touch.has-hover ? Theme.border-strong : transparent);
+    background: root.active ? (Theme.dark-mode ? root.accent-bg : Theme.bg-elevated) : (nav-touch.has-hover ? Theme.bg-hover : transparent);
 
     nav-touch := TouchArea {
         clicked => { root.clicked(); }
@@ -195,13 +216,13 @@ component SidebarNavItem inherits Rectangle {
                     source: root.icon;
                     width: 18px;
                     height: 18px;
-                    colorize: root.active ? #ffffff : (nav-touch.has-hover ? #e4e4e7 : #a1a1aa);
+                    colorize: root.accent-color;
                 }
             }
 
             if (!root.collapsed): Text {
                 text: root.label;
-                color: root.active ? #ffffff : (nav-touch.has-hover ? #e4e4e7 : #a1a1aa);
+                color: root.active ? Theme.text-primary : (nav-touch.has-hover ? Theme.text-primary : Theme.text-secondary);
                 font-size: 12px;
                 font-weight: 800;
                 vertical-alignment: center;
@@ -215,13 +236,13 @@ component SidebarNavItem inherits Rectangle {
                 width: 26px;
                 height: 20px;
                 border-radius: 4px;
-                background: root.active ? #0369a1 : #18181b;
+                background: root.active ? Theme.bg-panel : Theme.bg-elevated;
                 border-width: 1px;
-                border-color: root.active ? #38bdf8 : #27272a;
+                border-color: root.active ? root.accent-color : Theme.border-strong;
 
                 Text {
                     text: root.shortcut;
-                    color: root.active ? #ffffff : #71717a;
+                    color: root.active ? root.accent-color : Theme.text-muted;
                     font-size: 9px;
                     font-weight: 800;
                     horizontal-alignment: center;
@@ -249,6 +270,16 @@ export struct PendingPackageItem {
     carrier: string,
     description: string,
     received_time: string,
+}
+
+export struct ResidentItem {
+    id: string,
+    full_name: string,
+    document: string,
+    unit_label: string,
+    role: string,
+    mobile: string,
+    email: string,
 }
 
 export struct ParkingPickerItem {
@@ -283,13 +314,33 @@ export component AppWindow inherits Window {
     preferred-height: 780px;
     min-width: 1000px;
     min-height: 700px;
-    background: #000000; // NEGRO PURO
+    background: Theme.bg-window;
 
     in-out property <string> active-module: "home";
+    in-out property <string> current-view-title: "DASHBOARD";
+    property <color> current-module-color:
+        root.active-module == "visita" ? #60a5fa :
+        root.active-module == "vehiculo" ? #c084fc :
+        root.active-module == "paquete" ? #fbbf24 :
+        root.active-module == "residentes" ? #2dd4bf :
+        root.active-module == "minuta" ? #fb7185 :
+        root.active-module == "unidades" ? #4ade80 :
+        root.active-module == "config" ? #94a3b8 : #38bdf8;
     in-out property <bool> sidebar-collapsed: false;
-    in-out property <string> status-text: "SISTEMA OPERATIVO | BASE DE DATOS LOCAL SINCRONIZADA";
+    in-out property <string> current-user-name: "Cristian Ricardo Rojas";
+    in-out property <string> current-user-role: "Portería";
+    in-out property <string> status-text: "DASHBOARD";
     in-out property <[ActiveVisitItem]> active-visits: [];
     in-out property <[PendingPackageItem]> pending-packages: [];
+    in-out property <[ResidentItem]> residents: [];
+    in-out property <string> resident-search-query: "";
+    in-out property <bool> show-resident-drawer: false;
+    in-out property <string> form-resident-doc: "";
+    in-out property <string> form-resident-name: "";
+    in-out property <string> form-resident-unit: "";
+    in-out property <string> form-resident-role: "Propietario";
+    in-out property <string> form-resident-mobile: "";
+    in-out property <string> form-resident-email: "";
     in-out property <string> selected-tower: "Torre 1";
     in-out property <bool> show-drawer: false;
     in-out property <bool> show-parking-modal: false;
@@ -346,6 +397,10 @@ export component AppWindow inherits Window {
     callback select-tower(string);
     callback register-visit-exit(int);
     callback deliver-package(int);
+    callback open-resident-drawer();
+    callback cancel-resident-drawer();
+    callback search-residents(string);
+    callback save-resident();
     callback open-drawer();
     callback cancel-drawer();
     callback save-unit();
@@ -369,6 +424,10 @@ export component AppWindow inherits Window {
                     root.close-parking-picker();
                     return accept;
                 }
+                if (root.show-resident-drawer) {
+                    root.cancel-resident-drawer();
+                    return accept;
+                }
                 if (root.show-drawer) {
                     root.cancel-drawer();
                     return accept;
@@ -378,8 +437,10 @@ export component AppWindow inherits Window {
             if (event.text == Key.F2) { root.quick-action("visita"); return accept; }
             if (event.text == Key.F3) { root.quick-action("vehiculo"); return accept; }
             if (event.text == Key.F4) { root.quick-action("paquete"); return accept; }
-            if (event.text == Key.F5) { root.quick-action("unidades"); return accept; }
+            if (event.text == Key.F5) { root.quick-action("residentes"); return accept; }
             if (event.text == Key.F6) { root.quick-action("minuta"); return accept; }
+            if (event.text == Key.F7) { root.quick-action("unidades"); return accept; }
+            if (event.text == Key.F8) { root.quick-action("config"); return accept; }
             return reject;
         }
 
@@ -395,7 +456,7 @@ export component AppWindow inherits Window {
                 width: root.sidebar-collapsed ? 64px : 240px;
                 animate width { duration: 180ms; easing: ease-out; }
                 clip: true;
-                background: #09090b;
+                background: Theme.bg-panel;
 
                 VerticalLayout {
                     padding: 0px;
@@ -404,7 +465,7 @@ export component AppWindow inherits Window {
                     // CABECERA DEL SIDEBAR: LOGO MAMORI + MENÚ HAMBURGUESA
                     Rectangle {
                         height: 62px;
-                        background: #09090b;
+                        background: Theme.bg-panel;
 
                         HorizontalLayout {
                             padding-left: root.sidebar-collapsed ? 0px : 16px;
@@ -424,7 +485,7 @@ export component AppWindow inherits Window {
                                 }
                                 Text {
                                     text: "MAMORI";
-                                    color: #ffffff;
+                                    color: Theme.text-primary;
                                     font-size: 20px;
                                     font-weight: 900;
                                     vertical-alignment: center;
@@ -440,9 +501,9 @@ export component AppWindow inherits Window {
                         }
                     }
 
-                    Rectangle { height: 1px; background: #18181b; }
+                    Rectangle { height: 1px; background: Theme.border-subtle; }
 
-                    // LISTA DE MÓDULOS DE NAVEGACIÓN
+                    // LISTA DE MÓDULOS DE NAVEGACIÓN (ORDEN OFICIAL)
                     VerticalLayout {
                         vertical-stretch: 1;
                         padding: 10px;
@@ -452,6 +513,8 @@ export component AppWindow inherits Window {
                             icon: @image-url("icons/home.svg");
                             shortcut: "F1";
                             label: "HOME";
+                            accent-color: #38bdf8;
+                            accent-bg: #0c4a6e;
                             active: root.active-module == "home";
                             collapsed: root.sidebar-collapsed;
                             clicked => { root.quick-action("home"); }
@@ -460,6 +523,8 @@ export component AppWindow inherits Window {
                             icon: @image-url("icons/users.svg");
                             shortcut: "F2";
                             label: "VISITAS";
+                            accent-color: #60a5fa;
+                            accent-bg: #1e3a8a;
                             active: root.active-module == "visita";
                             collapsed: root.sidebar-collapsed;
                             clicked => { root.quick-action("visita"); }
@@ -468,6 +533,8 @@ export component AppWindow inherits Window {
                             icon: @image-url("icons/car.svg");
                             shortcut: "F3";
                             label: "VEHÍCULOS";
+                            accent-color: #c084fc;
+                            accent-bg: #3b0764;
                             active: root.active-module == "vehiculo";
                             collapsed: root.sidebar-collapsed;
                             clicked => { root.quick-action("vehiculo"); }
@@ -476,36 +543,61 @@ export component AppWindow inherits Window {
                             icon: @image-url("icons/package.svg");
                             shortcut: "F4";
                             label: "PAQUETERÍA";
+                            accent-color: #fbbf24;
+                            accent-bg: #451a03;
                             active: root.active-module == "paquete";
                             collapsed: root.sidebar-collapsed;
                             clicked => { root.quick-action("paquete"); }
                         }
                         SidebarNavItem {
-                            icon: @image-url("icons/building-2.svg");
+                            icon: @image-url("icons/id-card.svg");
                             shortcut: "F5";
-                            label: "UNIDADES & PREDIOS";
-                            active: root.active-module == "unidades";
+                            label: "RESIDENTES";
+                            accent-color: #2dd4bf;
+                            accent-bg: #134e4a;
+                            active: root.active-module == "residentes";
                             collapsed: root.sidebar-collapsed;
-                            clicked => { root.quick-action("unidades"); }
+                            clicked => { root.quick-action("residentes"); }
                         }
                         SidebarNavItem {
                             icon: @image-url("icons/clipboard-list.svg");
                             shortcut: "F6";
                             label: "MINUTA & NOVEDADES";
+                            accent-color: #fb7185;
+                            accent-bg: #4c0519;
                             active: root.active-module == "minuta";
                             collapsed: root.sidebar-collapsed;
                             clicked => { root.quick-action("minuta"); }
                         }
+                        SidebarNavItem {
+                            icon: @image-url("icons/building-2.svg");
+                            shortcut: "F7";
+                            label: "UNIDADES & PREDIOS";
+                            accent-color: #4ade80;
+                            accent-bg: #052e16;
+                            active: root.active-module == "unidades";
+                            collapsed: root.sidebar-collapsed;
+                            clicked => { root.quick-action("unidades"); }
+                        }
 
                         Rectangle { vertical-stretch: 1; }
 
-                        if (!root.sidebar-collapsed): Rectangle {
-                            height: 1px;
-                            background: #18181b;
+                        Rectangle { height: 1px; background: Theme.border-subtle; }
+
+                        SidebarNavItem {
+                            icon: @image-url("icons/settings.svg");
+                            shortcut: "F8";
+                            label: "CONFIGURACIÓN";
+                            accent-color: #94a3b8;
+                            accent-bg: #1e293b;
+                            active: root.active-module == "config";
+                            collapsed: root.sidebar-collapsed;
+                            clicked => { root.quick-action("config"); }
                         }
+
                         if (!root.sidebar-collapsed): Text {
                             text: "MAMORI PORTERÍA v0.1.0";
-                            color: #3f3f46;
+                            color: Theme.text-faint;
                             font-size: 10px;
                             font-weight: 800;
                             horizontal-alignment: center;
@@ -517,7 +609,7 @@ export component AppWindow inherits Window {
             // SEPARADOR VERTICAL DEL SIDEBAR
             Rectangle {
                 width: 1px;
-                background: #18181b;
+                background: Theme.border-subtle;
             }
 
             // 2. ÁREA DE TRABAJO PRINCIPAL (DERECHA)
@@ -527,44 +619,95 @@ export component AppWindow inherits Window {
                 padding: 14px;
                 spacing: 12px;
 
-                // BARRA SUPERIOR DE CONTEXTO Y ESTADO EN VIVO
+                // BARRA SUPERIOR DE CONTEXTO, ESTADO EN VIVO Y USUARIO LOGUEADO
                 Rectangle {
-                    height: 48px;
-                    background: #09090b;
+                    height: 52px;
+                    background: Theme.bg-panel;
                     border-radius: 8px;
                     border-width: 1px;
-                    border-color: #18181b;
+                    border-color: Theme.border-subtle;
 
                     HorizontalLayout {
                         padding-left: 16px;
                         padding-right: 16px;
                         alignment: space-between;
 
-                        Text {
-                            text: "CONTROL DE ACCESO Y SEGURIDAD RESIDENCIAL";
-                            color: #71717a;
-                            font-size: 12px;
-                            font-weight: 800;
-                            vertical-alignment: center;
-                        }
-
+                        // Vista actual y estado en vivo (izquierda)
                         HorizontalLayout {
                             spacing: 10px;
                             VerticalLayout {
                                 alignment: center;
                                 Rectangle {
-                                    width: 8px;
-                                    height: 8px;
-                                    border-radius: 4px;
-                                    background: #22c55e;
+                                    width: 10px;
+                                    height: 10px;
+                                    border-radius: 5px;
+                                    background: root.current-module-color;
                                 }
                             }
                             Text {
-                                text: root.status-text;
-                                color: #a1a1aa;
+                                text: root.current-view-title;
+                                color: root.current-module-color;
+                                font-size: 13px;
+                                font-weight: 900;
+                                vertical-alignment: center;
+                            }
+                            if (root.status-text != root.current-view-title): Text {
+                                text: "|  " + root.status-text;
+                                color: Theme.text-muted;
                                 font-size: 12px;
                                 font-weight: 600;
                                 vertical-alignment: center;
+                            }
+                        }
+
+                        // Usuario logueado (derecha superior)
+                        HorizontalLayout {
+                            spacing: 10px;
+                            alignment: end;
+
+                            VerticalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    width: 1px;
+                                    height: 24px;
+                                    background: Theme.border-strong;
+                                }
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    width: 30px;
+                                    height: 30px;
+                                    border-radius: 15px;
+                                    background: Theme.bg-elevated;
+                                    border-width: 1px;
+                                    border-color: Theme.border-strong;
+
+                                    Image {
+                                        source: @image-url("icons/user.svg");
+                                        width: 15px;
+                                        height: 15px;
+                                        colorize: #38bdf8;
+                                    }
+                                }
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 1px;
+                                Text {
+                                    text: root.current-user-name;
+                                    color: Theme.text-primary;
+                                    font-size: 12px;
+                                    font-weight: 800;
+                                }
+                                Text {
+                                    text: root.current-user-role;
+                                    color: Theme.text-muted;
+                                    font-size: 10px;
+                                    font-weight: 600;
+                                }
                             }
                         }
                     }
@@ -586,23 +729,23 @@ export component AppWindow inherits Window {
                     // KPI 1: Visitas dentro de la unidad
                     Rectangle {
                         horizontal-stretch: 1;
-                        background: #09090b;
+                        background: Theme.bg-panel;
                         border-radius: 8px;
                         border-width: 1px;
-                        border-color: #18181b;
+                        border-color: Theme.border-subtle;
 
                         VerticalLayout {
                             padding: 14px;
                             spacing: 4px;
                             HorizontalLayout {
                                 alignment: space-between;
-                                Text { text: "VISITAS DENTRO DE LA UNIDAD"; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                                Text { text: "VISITAS DENTRO DE LA UNIDAD"; color: Theme.text-muted; font-size: 11px; font-weight: 800; vertical-alignment: center; }
                                 Image { source: @image-url("icons/users.svg"); width: 16px; height: 16px; colorize: #38bdf8; }
                             }
                             HorizontalLayout {
                                 spacing: 10px;
                                 alignment: start;
-                                Text { text: root.active-visits.length; color: #ffffff; font-size: 26px; font-weight: 900; vertical-alignment: bottom; }
+                                Text { text: root.active-visits.length; color: Theme.text-primary; font-size: 26px; font-weight: 900; vertical-alignment: bottom; }
                                 Text { text: "activas en este momento"; color: #38bdf8; font-size: 11px; font-weight: 600; vertical-alignment: bottom; }
                             }
                         }
@@ -611,23 +754,23 @@ export component AppWindow inherits Window {
                     // KPI 2: Paquetería pendiente
                     Rectangle {
                         horizontal-stretch: 1;
-                        background: #09090b;
+                        background: Theme.bg-panel;
                         border-radius: 8px;
                         border-width: 1px;
-                        border-color: #18181b;
+                        border-color: Theme.border-subtle;
 
                         VerticalLayout {
                             padding: 14px;
                             spacing: 4px;
                             HorizontalLayout {
                                 alignment: space-between;
-                                Text { text: "PAQUETERÍA PENDIENTE"; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                                Text { text: "PAQUETERÍA PENDIENTE"; color: Theme.text-muted; font-size: 11px; font-weight: 800; vertical-alignment: center; }
                                 Image { source: @image-url("icons/package.svg"); width: 16px; height: 16px; colorize: #f59e0b; }
                             }
                             HorizontalLayout {
                                 spacing: 10px;
                                 alignment: start;
-                                Text { text: root.pending-packages.length; color: #ffffff; font-size: 26px; font-weight: 900; vertical-alignment: bottom; }
+                                Text { text: root.pending-packages.length; color: Theme.text-primary; font-size: 26px; font-weight: 900; vertical-alignment: bottom; }
                                 Text { text: "en casillero de portería"; color: #fbbf24; font-size: 11px; font-weight: 600; vertical-alignment: bottom; }
                             }
                         }
@@ -636,23 +779,23 @@ export component AppWindow inherits Window {
                     // KPI 3: Unidades registradas
                     Rectangle {
                         horizontal-stretch: 1;
-                        background: #09090b;
+                        background: Theme.bg-panel;
                         border-radius: 8px;
                         border-width: 1px;
-                        border-color: #18181b;
+                        border-color: Theme.border-subtle;
 
                         VerticalLayout {
                             padding: 14px;
                             spacing: 4px;
                             HorizontalLayout {
                                 alignment: space-between;
-                                Text { text: "UNIDADES REGISTRADAS"; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                                Text { text: "UNIDADES REGISTRADAS"; color: Theme.text-muted; font-size: 11px; font-weight: 800; vertical-alignment: center; }
                                 Image { source: @image-url("icons/building-2.svg"); width: 16px; height: 16px; colorize: #22c55e; }
                             }
                             HorizontalLayout {
                                 spacing: 10px;
                                 alignment: start;
-                                Text { text: root.units.length; color: #ffffff; font-size: 26px; font-weight: 900; vertical-alignment: bottom; }
+                                Text { text: root.units.length; color: Theme.text-primary; font-size: 26px; font-weight: 900; vertical-alignment: bottom; }
                                 Text { text: "predios en directorio"; color: #4ade80; font-size: 11px; font-weight: 600; vertical-alignment: bottom; }
                             }
                         }
@@ -667,10 +810,10 @@ export component AppWindow inherits Window {
                     // COLUMNA IZQUIERDA: VISITAS DENTRO DE LA UNIDAD
                     Rectangle {
                         horizontal-stretch: 1;
-                        background: #09090b;
+                        background: Theme.bg-panel;
                         border-radius: 8px;
                         border-width: 1px;
-                        border-color: #18181b;
+                        border-color: Theme.border-subtle;
 
                         VerticalLayout {
                             padding: 16px;
@@ -683,13 +826,13 @@ export component AppWindow inherits Window {
                                     spacing: 2px;
                                     Text {
                                         text: "VISITAS DENTRO DE LA UNIDAD";
-                                        color: #ffffff;
+                                        color: Theme.text-primary;
                                         font-size: 14px;
                                         font-weight: 900;
                                     }
                                     Text {
                                         text: "Personas actualmente dentro de la copropiedad sin registro de salida";
-                                        color: #71717a;
+                                        color: Theme.text-muted;
                                         font-size: 11px;
                                         font-weight: 500;
                                     }
@@ -702,43 +845,43 @@ export component AppWindow inherits Window {
                                 }
                             }
 
-                            Rectangle { height: 1px; background: #18181b; }
+                            Rectangle { height: 1px; background: Theme.border-subtle; }
 
                             // Cabecera de tabla
                             Rectangle {
                                 height: 30px;
-                                background: #050507;
+                                background: Theme.bg-surface;
                                 border-radius: 4px;
                                 HorizontalLayout {
                                     padding-left: 12px;
                                     padding-right: 12px;
                                     spacing: 8px;
-                                    Text { text: "VISITANTE"; horizontal-stretch: 2; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; }
-                                    Text { text: "DESTINO"; horizontal-stretch: 2; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; }
-                                    Text { text: "INGRESO"; width: 58px; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; }
-                                    Text { text: "ACCIÓN"; width: 106px; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; horizontal-alignment: right; }
+                                    Text { text: "VISITANTE"; horizontal-stretch: 2; color: Theme.text-muted; font-size: 10px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: "DESTINO"; horizontal-stretch: 2; color: Theme.text-muted; font-size: 10px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: "INGRESO"; width: 58px; color: Theme.text-muted; font-size: 10px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: "ACCIÓN"; width: 106px; color: Theme.text-muted; font-size: 10px; font-weight: 800; vertical-alignment: center; horizontal-alignment: right; }
                                 }
                             }
 
                             if (root.active-visits.length == 0): Rectangle {
                                 vertical-stretch: 1;
-                                background: #050507;
+                                background: Theme.bg-surface;
                                 border-radius: 6px;
                                 border-width: 1px;
-                                border-color: #18181b;
+                                border-color: Theme.border-subtle;
                                 VerticalLayout {
                                     alignment: center;
                                     spacing: 4px;
                                     Text {
                                         text: "No hay visitantes dentro de la unidad";
-                                        color: #a1a1aa;
+                                        color: Theme.text-secondary;
                                         font-size: 13px;
                                         font-weight: 700;
                                         horizontal-alignment: center;
                                     }
                                     Text {
                                         text: "Todas las visitas registradas ya completaron su salida";
-                                        color: #52525b;
+                                        color: Theme.text-faint;
                                         font-size: 11px;
                                         horizontal-alignment: center;
                                     }
@@ -752,10 +895,10 @@ export component AppWindow inherits Window {
                                     spacing: 6px;
                                     for visit[idx] in root.active-visits: Rectangle {
                                         height: 54px;
-                                        background: #050507;
+                                        background: Theme.bg-surface;
                                         border-radius: 6px;
                                         border-width: 1px;
-                                        border-color: #18181b;
+                                        border-color: Theme.border-subtle;
 
                                         HorizontalLayout {
                                             padding-left: 12px;
@@ -766,8 +909,8 @@ export component AppWindow inherits Window {
                                                 horizontal-stretch: 2;
                                                 alignment: center;
                                                 spacing: 2px;
-                                                Text { text: visit.visitor-name; color: #ffffff; font-size: 12px; font-weight: 800; }
-                                                Text { text: visit.document + " • " + visit.access-type; color: #71717a; font-size: 10px; font-weight: 600; }
+                                                Text { text: visit.visitor-name; color: Theme.text-primary; font-size: 12px; font-weight: 800; }
+                                                Text { text: visit.document + " • " + visit.access-type; color: Theme.text-muted; font-size: 10px; font-weight: 600; }
                                             }
 
                                             VerticalLayout {
@@ -779,7 +922,7 @@ export component AppWindow inherits Window {
                                             Text {
                                                 text: visit.entry-time;
                                                 width: 58px;
-                                                color: #e4e4e7;
+                                                color: Theme.text-primary;
                                                 font-size: 12px;
                                                 font-weight: 700;
                                                 vertical-alignment: center;
@@ -805,10 +948,10 @@ export component AppWindow inherits Window {
                     // COLUMNA DERECHA: PAQUETERÍA PENDIENTE POR ENTREGAR
                     Rectangle {
                         horizontal-stretch: 1;
-                        background: #09090b;
+                        background: Theme.bg-panel;
                         border-radius: 8px;
                         border-width: 1px;
-                        border-color: #18181b;
+                        border-color: Theme.border-subtle;
 
                         VerticalLayout {
                             padding: 16px;
@@ -821,13 +964,13 @@ export component AppWindow inherits Window {
                                     spacing: 2px;
                                     Text {
                                         text: "PAQUETERÍA PENDIENTE POR ENTREGAR";
-                                        color: #ffffff;
+                                        color: Theme.text-primary;
                                         font-size: 14px;
                                         font-weight: 900;
                                     }
                                     Text {
                                         text: "Encomiendas recibidas en garita esperando reclamo del residente";
-                                        color: #71717a;
+                                        color: Theme.text-muted;
                                         font-size: 11px;
                                         font-weight: 500;
                                     }
@@ -840,43 +983,43 @@ export component AppWindow inherits Window {
                                 }
                             }
 
-                            Rectangle { height: 1px; background: #18181b; }
+                            Rectangle { height: 1px; background: Theme.border-subtle; }
 
                             // Cabecera de tabla
                             Rectangle {
                                 height: 30px;
-                                background: #050507;
+                                background: Theme.bg-surface;
                                 border-radius: 4px;
                                 HorizontalLayout {
                                     padding-left: 12px;
                                     padding-right: 12px;
                                     spacing: 8px;
-                                    Text { text: "DESTINO / RESIDENTE"; horizontal-stretch: 2; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; }
-                                    Text { text: "EMPRESA / DETALLE"; horizontal-stretch: 2; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; }
-                                    Text { text: "RECIBIDO"; width: 58px; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; }
-                                    Text { text: "ACCIÓN"; width: 106px; color: #71717a; font-size: 10px; font-weight: 800; vertical-alignment: center; horizontal-alignment: right; }
+                                    Text { text: "DESTINO / RESIDENTE"; horizontal-stretch: 2; color: Theme.text-muted; font-size: 10px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: "EMPRESA / DETALLE"; horizontal-stretch: 2; color: Theme.text-muted; font-size: 10px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: "RECIBIDO"; width: 58px; color: Theme.text-muted; font-size: 10px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: "ACCIÓN"; width: 106px; color: Theme.text-muted; font-size: 10px; font-weight: 800; vertical-alignment: center; horizontal-alignment: right; }
                                 }
                             }
 
                             if (root.pending-packages.length == 0): Rectangle {
                                 vertical-stretch: 1;
-                                background: #050507;
+                                background: Theme.bg-surface;
                                 border-radius: 6px;
                                 border-width: 1px;
-                                border-color: #18181b;
+                                border-color: Theme.border-subtle;
                                 VerticalLayout {
                                     alignment: center;
                                     spacing: 4px;
                                     Text {
                                         text: "Sin paquetería pendiente por entregar";
-                                        color: #a1a1aa;
+                                        color: Theme.text-secondary;
                                         font-size: 13px;
                                         font-weight: 700;
                                         horizontal-alignment: center;
                                     }
                                     Text {
                                         text: "El casillero de portería se encuentra al día";
-                                        color: #52525b;
+                                        color: Theme.text-faint;
                                         font-size: 11px;
                                         horizontal-alignment: center;
                                     }
@@ -890,10 +1033,10 @@ export component AppWindow inherits Window {
                                     spacing: 6px;
                                     for pkg[idx] in root.pending-packages: Rectangle {
                                         height: 54px;
-                                        background: #050507;
+                                        background: Theme.bg-surface;
                                         border-radius: 6px;
                                         border-width: 1px;
-                                        border-color: #18181b;
+                                        border-color: Theme.border-subtle;
 
                                         HorizontalLayout {
                                             padding-left: 12px;
@@ -905,21 +1048,21 @@ export component AppWindow inherits Window {
                                                 alignment: center;
                                                 spacing: 2px;
                                                 Text { text: pkg.destination; color: #fbbf24; font-size: 12px; font-weight: 800; }
-                                                Text { text: pkg.recipient; color: #a1a1aa; font-size: 10px; font-weight: 600; }
+                                                Text { text: pkg.recipient; color: Theme.text-secondary; font-size: 10px; font-weight: 600; }
                                             }
 
                                             VerticalLayout {
                                                 horizontal-stretch: 2;
                                                 alignment: center;
                                                 spacing: 2px;
-                                                Text { text: pkg.carrier; color: #ffffff; font-size: 12px; font-weight: 700; }
-                                                Text { text: pkg.description; color: #71717a; font-size: 10px; font-weight: 600; }
+                                                Text { text: pkg.carrier; color: Theme.text-primary; font-size: 12px; font-weight: 700; }
+                                                Text { text: pkg.description; color: Theme.text-muted; font-size: 10px; font-weight: 600; }
                                             }
 
                                             Text {
                                                 text: pkg.received-time;
                                                 width: 58px;
-                                                color: #e4e4e7;
+                                                color: Theme.text-primary;
                                                 font-size: 12px;
                                                 font-weight: 700;
                                                 vertical-alignment: center;
@@ -955,10 +1098,10 @@ export component AppWindow inherits Window {
                 // PANEL IZQUIERDO: TORRES Y PARQUEADEROS
                 Rectangle {
                     width: 270px;
-                    background: #09090b;
+                    background: Theme.bg-panel;
                     border-radius: 8px;
                     border-width: 1px;
-                    border-color: #18181b;
+                    border-color: Theme.border-subtle;
 
                     VerticalLayout {
                         padding: 14px;
@@ -973,14 +1116,14 @@ export component AppWindow inherits Window {
                             }
                             Text {
                                 text: "TORRES / BLOQUES";
-                                color: #71717a;
+                                color: Theme.text-muted;
                                 font-size: 12px;
                                 font-weight: 800;
                                 vertical-alignment: center;
                             }
                         }
 
-                        Rectangle { height: 1px; background: #18181b; }
+                        Rectangle { height: 1px; background: Theme.border-subtle; }
 
                         for tower in root.towers: Rectangle {
                             height: 48px;
@@ -1013,12 +1156,12 @@ export component AppWindow inherits Window {
                                     width: 68px;
                                     height: 22px;
                                     border-radius: 11px;
-                                    background: #18181b;
+                                    background: Theme.border-subtle;
                                     y: 13px;
 
                                     Text {
                                         text: tower.unit_count + " aptos";
-                                        color: #a1a1aa;
+                                        color: Theme.text-secondary;
                                         font-size: 11px;
                                         font-weight: 600;
                                         horizontal-alignment: center;
@@ -1041,12 +1184,12 @@ export component AppWindow inherits Window {
                         }
 
                         Rectangle { height: 10px; }
-                        Rectangle { height: 1px; background: #18181b; }
+                        Rectangle { height: 1px; background: Theme.border-subtle; }
 
                         // SECCIÓN RÁPIDA: PARQUEADEROS
                         Text {
                             text: "PARQUEADEROS COPROPIEDAD";
-                            color: #71717a;
+                            color: Theme.text-muted;
                             font-size: 11px;
                             font-weight: 800;
                         }
@@ -1065,10 +1208,10 @@ export component AppWindow inherits Window {
 
                 // PANEL DERECHO: DIRECTORIO DE INMUEBLES
                 Rectangle {
-                    background: #09090b;
+                    background: Theme.bg-panel;
                     border-radius: 8px;
                     border-width: 1px;
-                    border-color: #18181b;
+                    border-color: Theme.border-subtle;
 
                     VerticalLayout {
                         padding: 16px;
@@ -1081,14 +1224,14 @@ export component AppWindow inherits Window {
                                 spacing: 12px;
                                 Text {
                                     text: root.selected-tower;
-                                    color: #ffffff;
+                                    color: Theme.text-primary;
                                     font-size: 18px;
                                     font-weight: 800;
                                     vertical-alignment: center;
                                 }
                                 Text {
                                     text: "•  Directorio de Inmuebles Registrados";
-                                    color: #71717a;
+                                    color: Theme.text-muted;
                                     font-size: 13px;
                                     font-weight: 600;
                                     vertical-alignment: center;
@@ -1106,7 +1249,7 @@ export component AppWindow inherits Window {
                             }
                         }
 
-                        Rectangle { height: 1px; background: #18181b; }
+                        Rectangle { height: 1px; background: Theme.border-subtle; }
 
                         // TABLA DE INMUEBLES
                         VerticalLayout {
@@ -1117,24 +1260,24 @@ export component AppWindow inherits Window {
                                 background: #000000;
                                 border-radius: 4px;
                                 border-width: 1px;
-                                border-color: #18181b;
+                                border-color: Theme.border-subtle;
 
                                 HorizontalLayout {
                                     padding-left: 14px;
                                     padding-right: 14px;
 
-                                    Text { text: "INMUEBLE"; width: 110px; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
-                                    Text { text: "TIPO"; width: 120px; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
-                                    Text { text: "CITÓFONO / EXT."; width: 140px; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
-                                    Text { text: "CELULAR"; width: 140px; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
-                                    Text { text: "TEL. FIJO"; width: 120px; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
-                                    Text { text: "PARQUEADEROS PRIVADOS"; color: #71717a; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: "INMUEBLE"; width: 110px; color: Theme.text-muted; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: "TIPO"; width: 120px; color: Theme.text-muted; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: "CITÓFONO / EXT."; width: 140px; color: Theme.text-muted; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: "CELULAR"; width: 140px; color: Theme.text-muted; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: "TEL. FIJO"; width: 120px; color: Theme.text-muted; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: "PARQUEADEROS PRIVADOS"; color: Theme.text-muted; font-size: 11px; font-weight: 800; vertical-alignment: center; }
                                 }
                             }
 
                             for unit in root.units: Rectangle {
                                 height: 42px;
-                                background: #050507;
+                                background: Theme.bg-surface;
                                 border-radius: 4px;
                                 border-width: 1px;
                                 border-color: #141417;
@@ -1143,8 +1286,8 @@ export component AppWindow inherits Window {
                                     padding-left: 14px;
                                     padding-right: 14px;
 
-                                    Text { text: unit.unit-number; width: 110px; color: #ffffff; font-size: 13px; font-weight: 800; vertical-alignment: center; }
-                                    Text { text: unit.unit-type; width: 120px; color: #a1a1aa; font-size: 13px; vertical-alignment: center; }
+                                    Text { text: unit.unit-number; width: 110px; color: Theme.text-primary; font-size: 13px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: unit.unit-type; width: 120px; color: Theme.text-secondary; font-size: 13px; vertical-alignment: center; }
                                     
                                     HorizontalLayout {
                                         width: 140px;
@@ -1165,8 +1308,8 @@ export component AppWindow inherits Window {
                                         }
                                     }
 
-                                    Text { text: unit.mobile; width: 140px; color: #e4e4e7; font-size: 13px; font-weight: 600; vertical-alignment: center; }
-                                    Text { text: unit.landline; width: 120px; color: #71717a; font-size: 13px; vertical-alignment: center; }
+                                    Text { text: unit.mobile; width: 140px; color: Theme.text-primary; font-size: 13px; font-weight: 600; vertical-alignment: center; }
+                                    Text { text: unit.landline; width: 120px; color: Theme.text-muted; font-size: 13px; vertical-alignment: center; }
                                     
                                     Text {
                                         text: unit.parking;
@@ -1183,29 +1326,658 @@ export component AppWindow inherits Window {
             }
 
             // ================================================================
-            // 3C. VISTAS EN CONSTRUCCIÓN (VISITAS, VEHÍCULOS, PAQUETERÍA, MINUTA)
+            // 3C. VISTA RESIDENTES: DIRECTORIO DE PERSONAS EN LA UNIDAD
             // ================================================================
-            if (root.active-module != "home" && root.active-module != "unidades"): Rectangle {
+            if (root.active-module == "residentes"): Rectangle {
                 vertical-stretch: 1;
-                background: #09090b;
+                background: Theme.bg-panel;
                 border-radius: 8px;
                 border-width: 1px;
-                border-color: #18181b;
+                border-color: Theme.border-subtle;
+
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+
+                    // CABECERA + BOTÓN NUEVO RESIDENTE
+                    HorizontalLayout {
+                        vertical-stretch: 0;
+                        alignment: space-between;
+
+                        HorizontalLayout {
+                            spacing: 10px;
+                            VerticalLayout {
+                                alignment: center;
+                                Image { source: @image-url("icons/id-card.svg"); width: 20px; height: 20px; colorize: #2dd4bf; }
+                            }
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text {
+                                    text: "DIRECTORIO DE RESIDENTES";
+                                    color: Theme.text-primary;
+                                    font-size: 16px;
+                                    font-weight: 900;
+                                }
+                                Text {
+                                    text: "Propietarios, arrendatarios y grupo familiar registrados en la unidad";
+                                    color: Theme.text-muted;
+                                    font-size: 12px;
+                                    font-weight: 500;
+                                }
+                            }
+                        }
+
+                        TacticalButton {
+                            text: "NUEVO RESIDENTE";
+                            icon: @image-url("icons/plus.svg");
+                            has-icon: true;
+                            primary: true;
+                            clicked => { root.open-resident-drawer(); }
+                        }
+                    }
+
+                    // BUSCADOR EN TIEMPO REAL
+                    HorizontalLayout {
+                        vertical-stretch: 0;
+                        spacing: 8px;
+                        VerticalLayout {
+                            alignment: center;
+                            Image { source: @image-url("icons/search.svg"); width: 16px; height: 16px; colorize: #2dd4bf; }
+                        }
+                        LineEdit {
+                            height: 36px;
+                            vertical-stretch: 0;
+                            horizontal-stretch: 1;
+                            text <=> root.resident-search-query;
+                            placeholder-text: "Buscar residente por nombre, documento, inmueble o celular...";
+                            edited(q) => { root.search-residents(q); }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border-subtle; }
+
+                    // CABECERA DE TABLA
+                    Rectangle {
+                        height: 32px;
+                        background: Theme.bg-surface;
+                        border-radius: 4px;
+                        HorizontalLayout {
+                            padding-left: 14px;
+                            padding-right: 14px;
+                            spacing: 10px;
+                            Text { text: "RESIDENTE / DOCUMENTO"; horizontal-stretch: 3; color: Theme.text-muted; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                            Text { text: "INMUEBLE"; horizontal-stretch: 2; color: Theme.text-muted; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                            Text { text: "ROL"; width: 120px; color: Theme.text-muted; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                            Text { text: "CELULAR"; width: 140px; color: Theme.text-muted; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                            Text { text: "CORREO ELECTRÓNICO"; horizontal-stretch: 2; color: Theme.text-muted; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                        }
+                    }
+
+                    if (root.residents.length == 0): Rectangle {
+                        vertical-stretch: 1;
+                        background: Theme.bg-surface;
+                        border-radius: 6px;
+                        border-width: 1px;
+                        border-color: Theme.border-subtle;
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 4px;
+                            Text {
+                                text: "No se encontraron residentes";
+                                color: Theme.text-secondary;
+                                font-size: 13px;
+                                font-weight: 700;
+                                horizontal-alignment: center;
+                            }
+                            Text {
+                                text: "Intente otro término de búsqueda o registre un nuevo residente";
+                                color: Theme.text-faint;
+                                font-size: 11px;
+                                horizontal-alignment: center;
+                            }
+                        }
+                    }
+
+                    if (root.residents.length > 0): ScrollView {
+                        vertical-stretch: 1;
+                        VerticalLayout {
+                            alignment: start;
+                            spacing: 6px;
+                            for res in root.residents: Rectangle {
+                                height: 50px;
+                                background: Theme.bg-surface;
+                                border-radius: 6px;
+                                border-width: 1px;
+                                border-color: Theme.border-subtle;
+
+                                HorizontalLayout {
+                                    padding-left: 14px;
+                                    padding-right: 14px;
+                                    spacing: 10px;
+
+                                    VerticalLayout {
+                                        horizontal-stretch: 3;
+                                        alignment: center;
+                                        spacing: 2px;
+                                        Text { text: res.full-name; color: Theme.text-primary; font-size: 13px; font-weight: 800; }
+                                        Text { text: res.document; color: Theme.text-muted; font-size: 11px; font-weight: 600; }
+                                    }
+
+                                    Text {
+                                        text: res.unit-label;
+                                        horizontal-stretch: 2;
+                                        color: #2dd4bf;
+                                        font-size: 13px;
+                                        font-weight: 700;
+                                        vertical-alignment: center;
+                                    }
+
+                                    VerticalLayout {
+                                        width: 120px;
+                                        alignment: center;
+                                        Rectangle {
+                                            width: 104px;
+                                            height: 22px;
+                                            border-radius: 4px;
+                                            background: res.role == "Propietario" ? #134e4a : (res.role == "Arrendatario" ? #1e3a8a : #27272a);
+                                            border-width: 1px;
+                                            border-color: res.role == "Propietario" ? #2dd4bf : (res.role == "Arrendatario" ? #60a5fa : #52525b);
+
+                                            Text {
+                                                text: res.role;
+                                                color: res.role == "Propietario" ? #5eead4 : (res.role == "Arrendatario" ? #93c5fd : #d4d4d8);
+                                                font-size: 10px;
+                                                font-weight: 800;
+                                                horizontal-alignment: center;
+                                                vertical-alignment: center;
+                                            }
+                                        }
+                                    }
+
+                                    Text {
+                                        text: res.mobile;
+                                        width: 140px;
+                                        color: Theme.text-primary;
+                                        font-size: 13px;
+                                        font-weight: 600;
+                                        vertical-alignment: center;
+                                    }
+
+                                    Text {
+                                        text: res.email;
+                                        horizontal-stretch: 2;
+                                        color: Theme.text-muted;
+                                        font-size: 12px;
+                                        vertical-alignment: center;
+                                        overflow: elide;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ================================================================
+            // 3D. VISTA CONFIGURACIÓN: APARIENCIA (OSCURO / CLARO) Y SISTEMA
+            // ================================================================
+            if (root.active-module == "config"): Rectangle {
+                vertical-stretch: 1;
+                background: Theme.bg-panel;
+                border-radius: 8px;
+                border-width: 1px;
+                border-color: Theme.border-subtle;
+
+                VerticalLayout {
+                    padding: 22px;
+                    spacing: 18px;
+
+                    // CABECERA
+                    HorizontalLayout {
+                        vertical-stretch: 0;
+                        spacing: 10px;
+                        VerticalLayout {
+                            alignment: center;
+                            Image { source: @image-url("icons/settings.svg"); width: 20px; height: 20px; colorize: #94a3b8; }
+                        }
+                        VerticalLayout {
+                            spacing: 2px;
+                            Text {
+                                text: "CONFIGURACIÓN DE LA APLICACIÓN";
+                                color: Theme.text-primary;
+                                font-size: 16px;
+                                font-weight: 900;
+                            }
+                            Text {
+                                text: "Personaliza la apariencia visual y preferencias de la terminal de portería";
+                                color: Theme.text-muted;
+                                font-size: 12px;
+                                font-weight: 500;
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border-subtle; }
+
+                    // SECCIÓN: TEMA VISUAL
+                    VerticalLayout {
+                        vertical-stretch: 0;
+                        spacing: 10px;
+
+                        Text {
+                            text: "TEMA VISUAL";
+                            color: #38bdf8;
+                            font-size: 11px;
+                            font-weight: 800;
+                        }
+
+                        HorizontalLayout {
+                            spacing: 14px;
+                            height: 110px;
+
+                            // TARJETA TEMA OSCURO
+                            Rectangle {
+                                horizontal-stretch: 1;
+                                background: Theme.dark-mode ? #0c4a6e : Theme.bg-surface;
+                                border-radius: 8px;
+                                border-width: Theme.dark-mode ? 2px : 1px;
+                                border-color: Theme.dark-mode ? #38bdf8 : Theme.border-strong;
+
+                                dark-card-touch := TouchArea {
+                                    clicked => {
+                                        Theme.dark-mode = true;
+                                        root.status-text = "Tema oscuro (True Black) activado.";
+                                    }
+                                }
+
+                                HorizontalLayout {
+                                    padding: 18px;
+                                    spacing: 14px;
+                                    alignment: start;
+
+                                    VerticalLayout {
+                                        alignment: center;
+                                        Rectangle {
+                                            width: 44px;
+                                            height: 44px;
+                                            border-radius: 22px;
+                                            background: #09090b;
+                                            border-width: 1px;
+                                            border-color: #38bdf8;
+
+                                            Image {
+                                                source: @image-url("icons/moon.svg");
+                                                width: 20px;
+                                                height: 20px;
+                                                colorize: #38bdf8;
+                                            }
+                                        }
+                                    }
+
+                                    VerticalLayout {
+                                        alignment: center;
+                                        spacing: 4px;
+                                        Text {
+                                            text: "MODO OSCURO (TRUE BLACK)";
+                                            color: Theme.dark-mode ? #ffffff : Theme.text-primary;
+                                            font-size: 14px;
+                                            font-weight: 900;
+                                        }
+                                        Text {
+                                            text: "Negro puro de alto contraste. Ideal para turnos nocturnos 24/7.";
+                                            color: Theme.dark-mode ? #bae6fd : Theme.text-muted;
+                                            font-size: 11px;
+                                            font-weight: 500;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // TARJETA TEMA CLARO
+                            Rectangle {
+                                horizontal-stretch: 1;
+                                background: !Theme.dark-mode ? #e0f2fe : Theme.bg-surface;
+                                border-radius: 8px;
+                                border-width: !Theme.dark-mode ? 2px : 1px;
+                                border-color: !Theme.dark-mode ? #0284c7 : Theme.border-strong;
+
+                                light-card-touch := TouchArea {
+                                    clicked => {
+                                        Theme.dark-mode = false;
+                                        root.status-text = "Tema claro activado.";
+                                    }
+                                }
+
+                                HorizontalLayout {
+                                    padding: 18px;
+                                    spacing: 14px;
+                                    alignment: start;
+
+                                    VerticalLayout {
+                                        alignment: center;
+                                        Rectangle {
+                                            width: 44px;
+                                            height: 44px;
+                                            border-radius: 22px;
+                                            background: #ffffff;
+                                            border-width: 1px;
+                                            border-color: #f59e0b;
+
+                                            Image {
+                                                source: @image-url("icons/sun.svg");
+                                                width: 20px;
+                                                height: 20px;
+                                                colorize: #f59e0b;
+                                            }
+                                        }
+                                    }
+
+                                    VerticalLayout {
+                                        alignment: center;
+                                        spacing: 4px;
+                                        Text {
+                                            text: "MODO CLARO";
+                                            color: !Theme.dark-mode ? #0f172a : Theme.text-primary;
+                                            font-size: 14px;
+                                            font-weight: 900;
+                                        }
+                                        Text {
+                                            text: "Superficies claras de alta legibilidad para garitas con luz solar directa.";
+                                            color: !Theme.dark-mode ? #334155 : Theme.text-muted;
+                                            font-size: 11px;
+                                            font-weight: 500;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border-subtle; }
+
+                    // SECCIÓN: INFORMACIÓN DE LA TERMINAL
+                    VerticalLayout {
+                        vertical-stretch: 0;
+                        spacing: 8px;
+                        Text {
+                            text: "INFORMACIÓN DE LA TERMINAL";
+                            color: Theme.text-muted;
+                            font-size: 11px;
+                            font-weight: 800;
+                        }
+                        Rectangle {
+                            height: 68px;
+                            background: Theme.bg-surface;
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: Theme.border-subtle;
+
+                            HorizontalLayout {
+                                padding-left: 16px;
+                                padding-right: 16px;
+                                alignment: space-between;
+
+                                VerticalLayout {
+                                    alignment: center;
+                                    spacing: 2px;
+                                    Text { text: "Mamori Terminal Windows Nativa v0.1.0"; color: Theme.text-primary; font-size: 13px; font-weight: 800; }
+                                    Text { text: "Motor gráfico: Slint + Rust nativo | Tema activo: " + (Theme.dark-mode ? "Oscuro (True Black)" : "Claro"); color: Theme.text-muted; font-size: 11px; }
+                                }
+
+                                VerticalLayout {
+                                    alignment: center;
+                                    Text { text: root.current-user-name + " (" + root.current-user-role + ")"; color: #38bdf8; font-size: 12px; font-weight: 700; }
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle { vertical-stretch: 1; }
+                }
+            }
+
+            // ================================================================
+            // 3E. VISTAS EN CONSTRUCCIÓN (VISITAS, VEHÍCULOS, PAQUETERÍA, MINUTA)
+            // ================================================================
+            if (root.active-module != "home" && root.active-module != "unidades" && root.active-module != "residentes" && root.active-module != "config"): Rectangle {
+                vertical-stretch: 1;
+                background: Theme.bg-panel;
+                border-radius: 8px;
+                border-width: 1px;
+                border-color: Theme.border-subtle;
+
+                VerticalLayout {
+                    padding: 22px;
+                    spacing: 18px;
+
+                    // CABECERA
+                    HorizontalLayout {
+                        vertical-stretch: 0;
+                        spacing: 10px;
+                        VerticalLayout {
+                            alignment: center;
+                            Image { source: @image-url("icons/settings.svg"); width: 20px; height: 20px; colorize: #94a3b8; }
+                        }
+                        VerticalLayout {
+                            spacing: 2px;
+                            Text {
+                                text: "CONFIGURACIÓN DE LA APLICACIÓN";
+                                color: Theme.text-primary;
+                                font-size: 16px;
+                                font-weight: 900;
+                            }
+                            Text {
+                                text: "Personaliza la apariencia visual y preferencias de la terminal de portería";
+                                color: Theme.text-muted;
+                                font-size: 12px;
+                                font-weight: 500;
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border-subtle; }
+
+                    // SECCIÓN: TEMA VISUAL
+                    VerticalLayout {
+                        vertical-stretch: 0;
+                        spacing: 10px;
+
+                        Text {
+                            text: "TEMA VISUAL";
+                            color: #38bdf8;
+                            font-size: 11px;
+                            font-weight: 800;
+                        }
+
+                        HorizontalLayout {
+                            spacing: 14px;
+                            height: 110px;
+
+                            // TARJETA TEMA OSCURO
+                            Rectangle {
+                                horizontal-stretch: 1;
+                                background: Theme.dark-mode ? #0c4a6e : Theme.bg-surface;
+                                border-radius: 8px;
+                                border-width: Theme.dark-mode ? 2px : 1px;
+                                border-color: Theme.dark-mode ? #38bdf8 : Theme.border-strong;
+
+                                dark-card-touch := TouchArea {
+                                    clicked => {
+                                        Theme.dark-mode = true;
+                                        root.status-text = "Tema oscuro (True Black) activado.";
+                                    }
+                                }
+
+                                HorizontalLayout {
+                                    padding: 18px;
+                                    spacing: 14px;
+                                    alignment: start;
+
+                                    VerticalLayout {
+                                        alignment: center;
+                                        Rectangle {
+                                            width: 44px;
+                                            height: 44px;
+                                            border-radius: 22px;
+                                            background: Theme.bg-panel;
+                                            border-width: 1px;
+                                            border-color: #38bdf8;
+
+                                            Image {
+                                                source: @image-url("icons/moon.svg");
+                                                width: 20px;
+                                                height: 20px;
+                                                colorize: #38bdf8;
+                                            }
+                                        }
+                                    }
+
+                                    VerticalLayout {
+                                        alignment: center;
+                                        spacing: 4px;
+                                        Text {
+                                            text: "MODO OSCURO (TRUE BLACK)";
+                                            color: Theme.dark-mode ? #ffffff : Theme.text-primary;
+                                            font-size: 14px;
+                                            font-weight: 900;
+                                        }
+                                        Text {
+                                            text: "Negro puro de alto contraste. Ideal para turnos nocturnos 24/7.";
+                                            color: Theme.dark-mode ? #bae6fd : Theme.text-muted;
+                                            font-size: 11px;
+                                            font-weight: 500;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // TARJETA TEMA CLARO
+                            Rectangle {
+                                horizontal-stretch: 1;
+                                background: !Theme.dark-mode ? #e0f2fe : Theme.bg-surface;
+                                border-radius: 8px;
+                                border-width: !Theme.dark-mode ? 2px : 1px;
+                                border-color: !Theme.dark-mode ? #0284c7 : Theme.border-strong;
+
+                                light-card-touch := TouchArea {
+                                    clicked => {
+                                        Theme.dark-mode = false;
+                                        root.status-text = "Tema claro activado.";
+                                    }
+                                }
+
+                                HorizontalLayout {
+                                    padding: 18px;
+                                    spacing: 14px;
+                                    alignment: start;
+
+                                    VerticalLayout {
+                                        alignment: center;
+                                        Rectangle {
+                                            width: 44px;
+                                            height: 44px;
+                                            border-radius: 22px;
+                                            background: #ffffff;
+                                            border-width: 1px;
+                                            border-color: #f59e0b;
+
+                                            Image {
+                                                source: @image-url("icons/sun.svg");
+                                                width: 20px;
+                                                height: 20px;
+                                                colorize: #f59e0b;
+                                            }
+                                        }
+                                    }
+
+                                    VerticalLayout {
+                                        alignment: center;
+                                        spacing: 4px;
+                                        Text {
+                                            text: "MODO CLARO";
+                                            color: !Theme.dark-mode ? #0f172a : Theme.text-primary;
+                                            font-size: 14px;
+                                            font-weight: 900;
+                                        }
+                                        Text {
+                                            text: "Superficies claras de alta legibilidad para garitas con luz solar directa.";
+                                            color: !Theme.dark-mode ? #334155 : Theme.text-muted;
+                                            font-size: 11px;
+                                            font-weight: 500;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border-subtle; }
+
+                    // SECCIÓN: INFORMACIÓN DE LA TERMINAL
+                    VerticalLayout {
+                        vertical-stretch: 0;
+                        spacing: 8px;
+                        Text {
+                            text: "INFORMACIÓN DE LA TERMINAL";
+                            color: Theme.text-muted;
+                            font-size: 11px;
+                            font-weight: 800;
+                        }
+                        Rectangle {
+                            height: 68px;
+                            background: Theme.bg-surface;
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: Theme.border-subtle;
+
+                            HorizontalLayout {
+                                padding-left: 16px;
+                                padding-right: 16px;
+                                alignment: space-between;
+
+                                VerticalLayout {
+                                    alignment: center;
+                                    spacing: 2px;
+                                    Text { text: "Mamori Terminal Windows Nativa v0.1.0"; color: Theme.text-primary; font-size: 13px; font-weight: 800; }
+                                    Text { text: "Motor gráfico: Slint + Rust nativo | Tema activo: " + (Theme.dark-mode ? "Oscuro (True Black)" : "Claro"); color: Theme.text-muted; font-size: 11px; }
+                                }
+
+                                VerticalLayout {
+                                    alignment: center;
+                                    Text { text: root.current-user-name + " (" + root.current-user-role + ")"; color: #38bdf8; font-size: 12px; font-weight: 700; }
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle { vertical-stretch: 1; }
+                }
+            }
+
+            // ================================================================
+            // 3E. VISTAS EN CONSTRUCCIÓN (VISITAS, VEHÍCULOS, PAQUETERÍA, MINUTA)
+            // ================================================================
+            if (root.active-module != "home" && root.active-module != "unidades" && root.active-module != "residentes" && root.active-module != "config"): Rectangle {
+                vertical-stretch: 1;
+                background: Theme.bg-panel;
+                border-radius: 8px;
+                border-width: 1px;
+                border-color: Theme.border-subtle;
 
                 VerticalLayout {
                     alignment: center;
                     spacing: 12px;
 
                     Text {
-                        text: "MÓDULO EN CONSTRUCCIÓN: " + root.active-module;
-                        color: #ffffff;
+                        text: "MÓDULO EN CONSTRUCCIÓN: " + root.current-view-title;
+                        color: Theme.text-primary;
                         font-size: 18px;
                         font-weight: 900;
                         horizontal-alignment: center;
                     }
                     Text {
                         text: "Este módulo será especificado e implementado en la siguiente iteración.";
-                        color: #71717a;
+                        color: Theme.text-muted;
                         font-size: 13px;
                         horizontal-alignment: center;
                     }
@@ -1224,14 +1996,14 @@ export component AppWindow inherits Window {
             HorizontalLayout {
                 alignment: space-between;
                 Text {
-                    text: "ATAJOS: [F1] HOME | [F2] VISITAS | [F3] VEHÍCULOS | [F4] PAQUETERÍA | [F5] UNIDADES | [F6] MINUTA | [ESC] CERRAR PANEL";
-                    color: #52525b;
+                    text: "ATAJOS: [F1] HOME | [F2] VISITAS | [F3] VEHÍCULOS | [F4] PAQUETERÍA | [F5] RESIDENTES | [F6] MINUTA | [F7] UNIDADES | [F8] CONFIG";
+                    color: Theme.text-faint;
                     font-size: 11px;
                     font-weight: 700;
                 }
                 Text {
                     text: "MAMORI v0.1.0 — TERMINAL NATIVA DE PORTERÍA (SLINT / RUST)";
-                    color: #52525b;
+                    color: Theme.text-faint;
                     font-size: 11px;
                     font-weight: 700;
                 }
@@ -1257,7 +2029,7 @@ export component AppWindow inherits Window {
             y: 0;
             width: 500px;
             height: parent.height;
-            background: #09090b;
+            background: Theme.bg-panel;
             border-width: 1px;
             border-color: #27272a;
 
@@ -1290,7 +2062,7 @@ export component AppWindow inherits Window {
                             spacing: 2px;
                             Text {
                                 text: "NUEVO INMUEBLE";
-                                color: #ffffff;
+                                color: Theme.text-primary;
                                 font-size: 18px;
                                 font-weight: 900;
                             }
@@ -1321,7 +2093,7 @@ export component AppWindow inherits Window {
                         }
                     }
 
-                    Rectangle { height: 1px; background: #18181b; }
+                    Rectangle { height: 1px; background: Theme.border-subtle; }
 
                     // CAMPOS BASE
                     VerticalLayout {
@@ -1331,7 +2103,7 @@ export component AppWindow inherits Window {
                         VerticalLayout {
                             vertical-stretch: 0;
                             spacing: 4px;
-                            Text { text: "NÚMERO DE INMUEBLE / PREDIO:"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
+                            Text { text: "NÚMERO DE INMUEBLE / PREDIO:"; color: Theme.text-secondary; font-size: 11px; font-weight: 800; }
                             LineEdit {
                                 height: 36px;
                                 vertical-stretch: 0;
@@ -1344,7 +2116,7 @@ export component AppWindow inherits Window {
                         VerticalLayout {
                             vertical-stretch: 0;
                             spacing: 4px;
-                            Text { text: "CITÓFONO / EXTENSIÓN FÍSICA:"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
+                            Text { text: "CITÓFONO / EXTENSIÓN FÍSICA:"; color: Theme.text-secondary; font-size: 11px; font-weight: 800; }
                             LineEdit {
                                 height: 36px;
                                 vertical-stretch: 0;
@@ -1357,7 +2129,7 @@ export component AppWindow inherits Window {
                         VerticalLayout {
                             vertical-stretch: 0;
                             spacing: 4px;
-                            Text { text: "CELULAR:"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
+                            Text { text: "CELULAR:"; color: Theme.text-secondary; font-size: 11px; font-weight: 800; }
                             LineEdit {
                                 height: 36px;
                                 vertical-stretch: 0;
@@ -1370,7 +2142,7 @@ export component AppWindow inherits Window {
                         VerticalLayout {
                             vertical-stretch: 0;
                             spacing: 4px;
-                            Text { text: "TELÉFONO FIJO (OPCIONAL):"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
+                            Text { text: "TELÉFONO FIJO (OPCIONAL):"; color: Theme.text-secondary; font-size: 11px; font-weight: 800; }
                             LineEdit {
                                 height: 36px;
                                 vertical-stretch: 0;
@@ -1381,7 +2153,7 @@ export component AppWindow inherits Window {
                         }
                     }
 
-                    Rectangle { height: 1px; background: #18181b; }
+                    Rectangle { height: 1px; background: Theme.border-subtle; }
 
                     // ========================================================
                     // SECCIÓN DE PARQUEADEROS PRIVADOS ASIGNADOS
@@ -1419,16 +2191,16 @@ export component AppWindow inherits Window {
                         // Lista de celdas asignadas al inmueble
                         if (root.selected-parking-list.length == 0): Rectangle {
                             height: 38px;
-                            background: #050507;
+                            background: Theme.bg-surface;
                             border-radius: 6px;
                             border-width: 1px;
-                            border-color: #18181b;
+                            border-color: Theme.border-subtle;
 
                             HorizontalLayout {
                                 padding-left: 14px;
                                 Text {
                                     text: "Ningún parqueadero asignado a este predio";
-                                    color: #52525b;
+                                    color: Theme.text-faint;
                                     font-size: 12px;
                                     font-weight: 500;
                                     vertical-alignment: center;
@@ -1438,7 +2210,7 @@ export component AppWindow inherits Window {
 
                         for spot-val[idx] in root.selected-parking-list: Rectangle {
                             height: 38px;
-                            background: #050507;
+                            background: Theme.bg-surface;
                             border-radius: 6px;
                             border-width: 1px;
                             border-color: #27272a;
@@ -1459,7 +2231,7 @@ export component AppWindow inherits Window {
                                     }
                                     Text {
                                         text: spot-val;
-                                        color: #ffffff;
+                                        color: Theme.text-primary;
                                         font-size: 13px;
                                         font-weight: 700;
                                         vertical-alignment: center;
@@ -1492,7 +2264,7 @@ export component AppWindow inherits Window {
                     }
 
                     Rectangle { vertical-stretch: 1; }
-                    Rectangle { height: 1px; background: #18181b; }
+                    Rectangle { height: 1px; background: Theme.border-subtle; }
 
                     // BOTONES DE ACCIÓN INFERIORES
                     VerticalLayout {
@@ -1532,7 +2304,7 @@ export component AppWindow inherits Window {
                     y: parent.height - self.height;
                     width: parent.width;
                     height: 440px;
-                    background: #09090b;
+                    background: Theme.bg-panel;
                     border-width: 1px;
                     border-color: #38bdf8;
                     border-radius: 8px;
@@ -1551,13 +2323,13 @@ export component AppWindow inherits Window {
                                 spacing: 2px;
                                 Text {
                                     text: "PARQUEADEROS DISPONIBLES";
-                                    color: #ffffff;
+                                    color: Theme.text-primary;
                                     font-size: 14px;
                                     font-weight: 900;
                                 }
                                 Text {
                                     text: "Seleccione una celda para asignarla a este inmueble";
-                                    color: #a1a1aa;
+                                    color: Theme.text-secondary;
                                     font-size: 11px;
                                     font-weight: 500;
                                 }
@@ -1618,24 +2390,24 @@ export component AppWindow inherits Window {
                         // LISTA DE RESULTADOS
                         if (root.filtered-parking-options.length == 0): Rectangle {
                             vertical-stretch: 1;
-                            background: #050507;
+                            background: Theme.bg-surface;
                             border-radius: 6px;
                             border-width: 1px;
-                            border-color: #18181b;
+                            border-color: Theme.border-subtle;
 
                             VerticalLayout {
                                 alignment: center;
                                 spacing: 4px;
                                 Text {
                                     text: "No se encontraron parqueaderos disponibles";
-                                    color: #a1a1aa;
+                                    color: Theme.text-secondary;
                                     font-size: 12px;
                                     font-weight: 700;
                                     horizontal-alignment: center;
                                 }
                                 Text {
                                     text: "Verifique el término de búsqueda o cree una nueva bahía";
-                                    color: #52525b;
+                                    color: Theme.text-faint;
                                     font-size: 11px;
                                     horizontal-alignment: center;
                                 }
@@ -1678,7 +2450,7 @@ export component AppWindow inherits Window {
                                             }
                                             Text {
                                                 text: item.code;
-                                                color: #ffffff;
+                                                color: Theme.text-primary;
                                                 font-size: 13px;
                                                 font-weight: 800;
                                                 vertical-alignment: center;
@@ -1748,7 +2520,7 @@ export component AppWindow inherits Window {
             y: 0;
             width: 500px;
             height: parent.height;
-            background: #09090b;
+            background: Theme.bg-panel;
             border-width: 1px;
             border-color: #27272a;
 
@@ -1777,7 +2549,7 @@ export component AppWindow inherits Window {
                             spacing: 2px;
                             Text {
                                 text: "NUEVO PARQUEADERO";
-                                color: #ffffff;
+                                color: Theme.text-primary;
                                 font-size: 18px;
                                 font-weight: 900;
                             }
@@ -1808,7 +2580,7 @@ export component AppWindow inherits Window {
                         }
                     }
 
-                    Rectangle { height: 1px; background: #18181b; }
+                    Rectangle { height: 1px; background: Theme.border-subtle; }
 
                     // CAMPOS DEL PARQUEADERO
                     VerticalLayout {
@@ -1818,7 +2590,7 @@ export component AppWindow inherits Window {
                         VerticalLayout {
                             vertical-stretch: 0;
                             spacing: 5px;
-                            Text { text: "CÓDIGO / IDENTIFICADOR DE BAHÍA:"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
+                            Text { text: "CÓDIGO / IDENTIFICADOR DE BAHÍA:"; color: Theme.text-secondary; font-size: 11px; font-weight: 800; }
                             LineEdit {
                                 height: 36px;
                                 vertical-stretch: 0;
@@ -1831,7 +2603,7 @@ export component AppWindow inherits Window {
                         VerticalLayout {
                             vertical-stretch: 0;
                             spacing: 5px;
-                            Text { text: "TIPO DE VEHÍCULO:"; color: #a1a1aa; font-size: 11px; font-weight: 800; }
+                            Text { text: "TIPO DE VEHÍCULO:"; color: Theme.text-secondary; font-size: 11px; font-weight: 800; }
                             HorizontalLayout {
                                 spacing: 8px;
                                 TacticalButton {
@@ -1855,7 +2627,7 @@ export component AppWindow inherits Window {
                     }
 
                     Rectangle { vertical-stretch: 1; }
-                    Rectangle { height: 1px; background: #18181b; }
+                    Rectangle { height: 1px; background: Theme.border-subtle; }
 
                     // BOTONES DE ACCIÓN INFERIORES
                     VerticalLayout {
@@ -1883,6 +2655,218 @@ export component AppWindow inherits Window {
                             clicked => {
                                 root.show-parking-modal = false;
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ========================================================================
+    // CAPA LATERAL: PANEL DERECHO (DRAWER DE NUEVO RESIDENTE)
+    // ========================================================================
+    if (root.show-resident-drawer): Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #000000a6;
+
+        TouchArea {
+            clicked => { root.cancel-resident-drawer(); }
+        }
+
+        Rectangle {
+            x: parent.width - self.width;
+            y: 0;
+            width: 500px;
+            height: parent.height;
+            background: Theme.bg-panel;
+            border-width: 1px;
+            border-color: #27272a;
+
+            TouchArea {
+                clicked => { /* Absorbe clics internos */ }
+            }
+
+            resident-drawer-scope := FocusScope {
+                key-pressed(event) => {
+                    if (event.text == Key.Escape) {
+                        root.cancel-resident-drawer();
+                        return accept;
+                    }
+                    return reject;
+                }
+
+                VerticalLayout {
+                    padding: 22px;
+                    spacing: 14px;
+
+                    // CABECERA DEL PANEL
+                    HorizontalLayout {
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            spacing: 2px;
+                            Text {
+                                text: "NUEVO RESIDENTE";
+                                color: Theme.text-primary;
+                                font-size: 18px;
+                                font-weight: 900;
+                            }
+                            Text {
+                                text: "Registro de persona habitante en la unidad residencial";
+                                color: #2dd4bf;
+                                font-size: 13px;
+                                font-weight: 600;
+                            }
+                        }
+
+                        Rectangle {
+                            width: 32px;
+                            height: 32px;
+                            border-radius: 16px;
+                            background: close-res-touch.has-hover ? #27272a : #18181b;
+
+                            close-res-touch := TouchArea {
+                                clicked => { root.cancel-resident-drawer(); }
+                            }
+
+                            Image {
+                                source: @image-url("icons/x.svg");
+                                width: 16px;
+                                height: 16px;
+                                colorize: close-res-touch.has-hover ? #ffffff : #a1a1aa;
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border-subtle; }
+
+                    // CAMPOS DEL RESIDENTE
+                    VerticalLayout {
+                        vertical-stretch: 0;
+                        spacing: 12px;
+
+                        VerticalLayout {
+                            vertical-stretch: 0;
+                            spacing: 4px;
+                            Text { text: "DOCUMENTO DE IDENTIDAD:"; color: Theme.text-secondary; font-size: 11px; font-weight: 800; }
+                            LineEdit {
+                                height: 36px;
+                                vertical-stretch: 0;
+                                horizontal-stretch: 1;
+                                text <=> root.form-resident-doc;
+                                placeholder-text: "Ej: CC 1.017.234.567";
+                            }
+                        }
+
+                        VerticalLayout {
+                            vertical-stretch: 0;
+                            spacing: 4px;
+                            Text { text: "NOMBRE COMPLETO:"; color: Theme.text-secondary; font-size: 11px; font-weight: 800; }
+                            LineEdit {
+                                height: 36px;
+                                vertical-stretch: 0;
+                                horizontal-stretch: 1;
+                                text <=> root.form-resident-name;
+                                placeholder-text: "Ej: María Fernanda López";
+                            }
+                        }
+
+                        VerticalLayout {
+                            vertical-stretch: 0;
+                            spacing: 4px;
+                            Text { text: "INMUEBLE / PREDIO ASOCIADO:"; color: Theme.text-secondary; font-size: 11px; font-weight: 800; }
+                            LineEdit {
+                                height: 36px;
+                                vertical-stretch: 0;
+                                horizontal-stretch: 1;
+                                text <=> root.form-resident-unit;
+                                placeholder-text: "Ej: Torre 1 - Apto 301";
+                            }
+                        }
+
+                        VerticalLayout {
+                            vertical-stretch: 0;
+                            spacing: 5px;
+                            Text { text: "ROL EN LA UNIDAD:"; color: Theme.text-secondary; font-size: 11px; font-weight: 800; }
+                            HorizontalLayout {
+                                spacing: 8px;
+                                TacticalButton {
+                                    text: "PROPIETARIO";
+                                    h-stretch: 1;
+                                    font-size: 11px;
+                                    active: root.form-resident-role == "Propietario";
+                                    clicked => { root.form-resident-role = "Propietario"; }
+                                }
+                                TacticalButton {
+                                    text: "ARRENDATARIO";
+                                    h-stretch: 1;
+                                    font-size: 11px;
+                                    active: root.form-resident-role == "Arrendatario";
+                                    clicked => { root.form-resident-role = "Arrendatario"; }
+                                }
+                                TacticalButton {
+                                    text: "FAMILIAR";
+                                    h-stretch: 1;
+                                    font-size: 11px;
+                                    active: root.form-resident-role == "Familiar";
+                                    clicked => { root.form-resident-role = "Familiar"; }
+                                }
+                            }
+                        }
+
+                        VerticalLayout {
+                            vertical-stretch: 0;
+                            spacing: 4px;
+                            Text { text: "CELULAR:"; color: Theme.text-secondary; font-size: 11px; font-weight: 800; }
+                            LineEdit {
+                                height: 36px;
+                                vertical-stretch: 0;
+                                horizontal-stretch: 1;
+                                text <=> root.form-resident-mobile;
+                                placeholder-text: "Ej: 300 456 7890";
+                            }
+                        }
+
+                        VerticalLayout {
+                            vertical-stretch: 0;
+                            spacing: 4px;
+                            Text { text: "CORREO ELECTRÓNICO (OPCIONAL):"; color: Theme.text-secondary; font-size: 11px; font-weight: 800; }
+                            LineEdit {
+                                height: 36px;
+                                vertical-stretch: 0;
+                                horizontal-stretch: 1;
+                                text <=> root.form-resident-email;
+                                placeholder-text: "Ej: maria.lopez@correo.com";
+                            }
+                        }
+                    }
+
+                    Rectangle { vertical-stretch: 1; }
+                    Rectangle { height: 1px; background: Theme.border-subtle; }
+
+                    // BOTONES DE ACCIÓN INFERIORES
+                    VerticalLayout {
+                        vertical-stretch: 0;
+                        spacing: 8px;
+
+                        TacticalButton {
+                            text: "GUARDAR RESIDENTE";
+                            icon: @image-url("icons/check.svg");
+                            has-icon: true;
+                            primary: true;
+                            h-stretch: 1;
+                            font-size: 13px;
+                            clicked => { root.save-resident(); }
+                        }
+
+                        TacticalButton {
+                            text: "CANCELAR [ESC]";
+                            icon: @image-url("icons/x.svg");
+                            has-icon: true;
+                            h-stretch: 1;
+                            font-size: 12px;
+                            clicked => { root.cancel-resident-drawer(); }
                         }
                     }
                 }

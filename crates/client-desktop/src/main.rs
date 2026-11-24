@@ -200,6 +200,48 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ]));
     ui.set_pending_packages(pending_packages_model.clone().into());
 
+    // Catálogo maestro y modelo filtrado de Residentes
+    let master_residents = Rc::new(RefCell::new(vec![
+        ResidentItem {
+            id: "r1".into(),
+            full_name: "Mateo Restrepo Cano".into(),
+            document: "CC 1.017.112.450".into(),
+            unit_label: "Torre 1 - Apto 102".into(),
+            role: "Propietario".into(),
+            mobile: "315 987 6543".into(),
+            email: "mateo.restrepo@correo.com".into(),
+        },
+        ResidentItem {
+            id: "r2".into(),
+            full_name: "Ana María Salazar Vélez".into(),
+            document: "CC 43.876.512".into(),
+            unit_label: "Torre 1 - Apto 201".into(),
+            role: "Propietario".into(),
+            mobile: "310 444 3322".into(),
+            email: "ana.salazar@correo.com".into(),
+        },
+        ResidentItem {
+            id: "r3".into(),
+            full_name: "Felipe Londoño Arias".into(),
+            document: "CC 1.036.654.890".into(),
+            unit_label: "Torre 2 - Apto 104".into(),
+            role: "Arrendatario".into(),
+            mobile: "318 777 6655".into(),
+            email: "felipe.londono@correo.com".into(),
+        },
+        ResidentItem {
+            id: "r4".into(),
+            full_name: "Carolina Vélez Gómez".into(),
+            document: "CC 1.020.445.321".into(),
+            unit_label: "Manzana A - Casa 12".into(),
+            role: "Familiar".into(),
+            mobile: "301 222 1100".into(),
+            email: "carolina.velez@correo.com".into(),
+        },
+    ]));
+    let residents_model = Rc::new(VecModel::from(master_residents.borrow().clone()));
+    ui.set_residents(residents_model.clone().into());
+
     // Catálogo maestro de parqueaderos disponibles en la copropiedad (no asignados a otros predios)
     let master_parking_catalog = Rc::new(RefCell::new(vec![
         "P-104 (Carro)".to_string(),
@@ -221,9 +263,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let ui_handle = ui.as_weak();
         move |action| {
             if let Some(ui) = ui_handle.upgrade() {
-                tracing::info!("Módulo seleccionado: {}", action);
+                let view_title = match action.as_str() {
+                    "home" => "DASHBOARD",
+                    "visita" => "VISITAS",
+                    "vehiculo" => "VEHÍCULOS",
+                    "paquete" => "PAQUETERÍA",
+                    "residentes" => "RESIDENTES",
+                    "minuta" => "MINUTA & NOVEDADES",
+                    "unidades" => "UNIDADES & PREDIOS",
+                    "config" => "CONFIGURACIÓN",
+                    other => other,
+                };
+                tracing::info!("Vista seleccionada: {} ({})", view_title, action);
                 ui.set_active_module(action.clone());
-                ui.set_status_text(format!("Módulo activo: {}", action).into());
+                ui.set_current_view_title(view_title.into());
+                ui.set_status_text(view_title.into());
             }
         }
     });
@@ -289,6 +343,99 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         format!("Paquete de {} entregado a {} ({}).", pkg.carrier, pkg.destination, pkg.recipient).into(),
                     );
                 }
+            }
+        }
+    });
+
+    // Callbacks Módulo Residentes: Abrir/Cancelar Drawer, Buscar y Guardar
+    ui.on_open_resident_drawer({
+        let ui_handle = ui.as_weak();
+        move || {
+            if let Some(ui) = ui_handle.upgrade() {
+                ui.set_form_resident_doc("".into());
+                ui.set_form_resident_name("".into());
+                ui.set_form_resident_unit("".into());
+                ui.set_form_resident_role("Propietario".into());
+                ui.set_form_resident_mobile("".into());
+                ui.set_form_resident_email("".into());
+                ui.set_show_resident_drawer(true);
+            }
+        }
+    });
+
+    ui.on_cancel_resident_drawer({
+        let ui_handle = ui.as_weak();
+        move || {
+            if let Some(ui) = ui_handle.upgrade() {
+                ui.set_show_resident_drawer(false);
+            }
+        }
+    });
+
+    let master_res_search = master_residents.clone();
+    let res_model_search = residents_model.clone();
+    ui.on_search_residents({
+        let master = master_res_search.clone();
+        let model = res_model_search.clone();
+        move |query| {
+            let q = query.trim().to_lowercase();
+            let filtered: Vec<ResidentItem> = master
+                .borrow()
+                .iter()
+                .filter(|r| {
+                    if q.is_empty() {
+                        true
+                    } else {
+                        r.full_name.to_lowercase().contains(&q)
+                            || r.document.to_lowercase().contains(&q)
+                            || r.unit_label.to_lowercase().contains(&q)
+                            || r.mobile.to_lowercase().contains(&q)
+                            || r.role.to_lowercase().contains(&q)
+                    }
+                })
+                .cloned()
+                .collect();
+            model.set_vec(filtered);
+        }
+    });
+
+    let master_res_save = master_residents.clone();
+    let res_model_save = residents_model.clone();
+    ui.on_save_resident({
+        let ui_handle = ui.as_weak();
+        let master = master_res_save.clone();
+        let model = res_model_save.clone();
+        move || {
+            if let Some(ui) = ui_handle.upgrade() {
+                let name = ui.get_form_resident_name();
+                let doc = ui.get_form_resident_doc();
+                let unit = ui.get_form_resident_unit();
+                let role = ui.get_form_resident_role();
+                let mobile = ui.get_form_resident_mobile();
+                let email = ui.get_form_resident_email();
+
+                if name.trim().is_empty() || unit.trim().is_empty() {
+                    ui.set_status_text("Error: Ingrese al menos nombre completo e inmueble del residente.".into());
+                    return;
+                }
+
+                let new_res = ResidentItem {
+                    id: format!("r-{}", master.borrow().len() + 1).into(),
+                    full_name: name.clone(),
+                    document: if doc.trim().is_empty() { "Sin documento".into() } else { doc },
+                    unit_label: unit.clone(),
+                    role,
+                    mobile: if mobile.trim().is_empty() { "—".into() } else { mobile },
+                    email: if email.trim().is_empty() { "—".into() } else { email },
+                };
+
+                master.borrow_mut().push(new_res);
+                ui.set_resident_search_query("".into());
+                model.set_vec(master.borrow().clone());
+
+                tracing::info!("Residente registrado: {} en {}", name, unit);
+                ui.set_status_text(format!("Residente {} registrado en {}.", name, unit).into());
+                ui.set_show_resident_drawer(false);
             }
         }
     });
