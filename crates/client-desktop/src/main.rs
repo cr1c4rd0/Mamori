@@ -3,11 +3,14 @@ slint::include_modules!();
 mod sim_server;
 mod store;
 mod sync;
+mod transport;
 mod ui_bind;
+mod units_crud;
 
 use chrono::Utc;
-use mamori_shared::sync::{ParkingSpotRecord, ResidentRecord, SyncRecord, UnitRecord};
+use mamori_shared::sync::{ParkingSpotRecord, ResidentRecord, SyncRecord};
 use sim_server::SimServer;
+use transport::{HttpServer, SyncServer};
 use slint::{Model, VecModel};
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -20,6 +23,18 @@ use ui_bind::non_empty;
 
 /// Latencia simulada de red del servidor simulado (para ver el estado "Sincronizando…").
 const SIM_NETWORK_LATENCY: Duration = Duration::from_millis(1200);
+/// Servidor real local por defecto (D-29).
+const DEFAULT_SERVER_URL: &str = "http://127.0.0.1:8080";
+
+/// Servidor de sincronización: real (por defecto) o simulado con `MAMORI_SERVER=sim`.
+fn sync_server() -> Result<SyncServer, transport::ServerError> {
+    if std::env::var("MAMORI_SERVER").is_ok_and(|v| v.eq_ignore_ascii_case("sim")) {
+        let dir = data_dir("MAMORI_SERVER_DIR", "servidor_simulado");
+        return Ok(SyncServer::Sim(SimServer::new(dir, SIM_NETWORK_LATENCY)));
+    }
+    let url = std::env::var("MAMORI_SERVER_URL").unwrap_or_else(|_| DEFAULT_SERVER_URL.to_string());
+    Ok(SyncServer::Http(HttpServer::new(&url)?))
+}
 
 /// Muestra una alerta flotante en la parte inferior de la pantalla con cierre automático (4s).
 fn show_bottom_alert(ui: &AppWindow, kind: &str, message: &str) {
@@ -52,6 +67,39 @@ fn persist<T: SyncRecord>(ui: &AppWindow, store: &SharedStore, records: &[T]) ->
     }
     ui_bind::refresh_all(ui, &s);
     true
+}
+
+/// Guarda todos los registros de una operación del CRUD de Unidades & Predios.
+/// Orden: torres → inmuebles → parqueaderos → residentes (las llaves foráneas del
+/// servidor reciben primero el inmueble y luego sus parqueaderos).
+fn persist_plan(ui: &AppWindow, store: &SharedStore, plan: &units_crud::Plan) -> bool {
+    let mut s = lock(store);
+    let mut save = || -> Result<(), store::StoreError> {
+        plan.towers.iter().try_for_each(|r| s.record(r))?;
+        plan.units.iter().try_for_each(|r| s.record(r))?;
+        plan.parking_spots.iter().try_for_each(|r| s.record(r))?;
+        plan.residents.iter().try_for_each(|r| s.record(r))
+    };
+    if let Err(e) = save() {
+        tracing::error!("No se pudo guardar en disco: {}", e);
+        drop(s);
+        show_bottom_alert(ui, "error", "No se pudo guardar en el disco de la terminal. Avise al administrador.");
+        return false;
+    }
+    ui_bind::refresh_all(ui, &s);
+    true
+}
+
+/// Lee el formulario del panel de inmueble.
+fn unit_form(ui: &AppWindow, parking: &VecModel<slint::SharedString>) -> units_crud::UnitForm {
+    units_crud::UnitForm {
+        unit_number: ui.get_form_unit_number().to_string(),
+        unit_type: ui.get_form_unit_type().to_string(),
+        intercom: non_empty(&ui.get_form_intercom()),
+        mobile: non_empty(&ui.get_form_mobile()),
+        landline: non_empty(&ui.get_form_landline()),
+        parking: parking.iter().map(|p| parking_code(&p).to_string()).collect(),
+    }
 }
 
 /// Carpeta de datos: variable de entorno o `%APPDATA%\Mamori\<sub>`.
@@ -153,14 +201,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
     tracing::info!("Iniciando Mamori Terminal Windows Nativa (Slint)...");
 
-    // Almacenamiento local (D-22) y servidor simulado (D-25)
+    // Almacenamiento local (D-22) y servidor de sincronización (D-29)
     let terminal_dir = data_dir("MAMORI_DATA_DIR", "terminal");
-    let server_dir = data_dir("MAMORI_SERVER_DIR", "servidor_simulado");
+    let server = sync_server()?;
     let store: SharedStore = Arc::new(Mutex::new(LocalStore::open(&terminal_dir)?));
     tracing::info!(
-        "Datos locales: {} | Servidor simulado: {} | Nodo: {}",
+        "Datos locales: {} | Sincroniza con: {} | Nodo: {}",
         terminal_dir.display(),
-        server_dir.display(),
+        server.describe(),
         lock(&store).node_id()
     );
 
@@ -169,6 +217,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Modelos reactivos; su contenido siempre se pinta desde el almacenamiento local.
     let units_model = Rc::new(VecModel::<UnitItem>::default());
     ui.set_units(units_model.clone().into());
+    ui.set_tower_units(Rc::new(VecModel::<UnitItem>::default()).into());
+    ui.set_towers(Rc::new(VecModel::<TowerItem>::default()).into());
     let active_visits_model = Rc::new(VecModel::<ActiveVisitItem>::default());
     ui.set_active_visits(active_visits_model.clone().into());
     let pending_packages_model = Rc::new(VecModel::<PendingPackageItem>::default());
@@ -276,10 +326,110 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Callback para seleccionar torre
     ui.on_select_tower({
         let ui_handle = ui.as_weak();
+        let store = store.clone();
         move |tower_name| {
             if let Some(ui) = ui_handle.upgrade() {
                 tracing::info!("Torre seleccionada: {}", tower_name);
+                ui.set_selected_tower(tower_name.clone());
+                ui_bind::refresh_all(&ui, &lock(&store));
                 ui.set_status_text(format!("Visualizando predios de: {}", tower_name).into());
+            }
+        }
+    });
+
+    // ===== CRUD de Torres / Bloques (D-30) =====
+    ui.on_new_tower({
+        let ui_handle = ui.as_weak();
+        move || {
+            if let Some(ui) = ui_handle.upgrade() {
+                ui.set_editing_tower_id("".into());
+                ui.set_form_tower_name("".into());
+                ui.set_confirm_delete_tower(false);
+                ui.set_show_tower_drawer(true);
+            }
+        }
+    });
+
+    ui.on_edit_tower({
+        let ui_handle = ui.as_weak();
+        let store = store.clone();
+        move || {
+            let Some(ui) = ui_handle.upgrade() else { return };
+            let selected = ui.get_selected_tower();
+            let tower = lock(&store).data.towers.iter().find(|t| t.is_active && t.name == selected.as_str()).cloned();
+            if let Some(t) = tower {
+                ui.set_editing_tower_id(t.id.into());
+                ui.set_form_tower_name(t.name.into());
+                ui.set_confirm_delete_tower(false);
+                ui.set_show_tower_drawer(true);
+            }
+        }
+    });
+
+    ui.on_cancel_tower_drawer({
+        let ui_handle = ui.as_weak();
+        move || {
+            if let Some(ui) = ui_handle.upgrade() {
+                ui.set_confirm_delete_tower(false);
+                ui.set_show_tower_drawer(false);
+            }
+        }
+    });
+
+    ui.on_save_tower({
+        let ui_handle = ui.as_weak();
+        let store = store.clone();
+        move || {
+            let Some(ui) = ui_handle.upgrade() else { return };
+            let id = ui.get_editing_tower_id();
+            let name = ui.get_form_tower_name();
+            let result = {
+                let s = lock(&store);
+                if id.is_empty() {
+                    units_crud::create_tower(&s.data, &name)
+                } else {
+                    units_crud::rename_tower(&s.data, &id, &name)
+                }
+            };
+            match result {
+                Err(e) => show_bottom_alert(&ui, "error", &e.to_string()),
+                Ok(plan) => {
+                    let new_name = plan.towers.first().map(|t| t.name.clone());
+                    if persist_plan(&ui, &store, &plan) {
+                        if let Some(n) = new_name {
+                            ui.set_selected_tower(n.clone().into());
+                            ui_bind::refresh_all(&ui, &lock(&store));
+                            let verb = if id.is_empty() { "creada" } else { "actualizada" };
+                            tracing::info!("Torre {}: {}", verb, n);
+                            ui.set_status_text(format!("{} {}.", n, verb).into());
+                        }
+                        ui.set_show_tower_drawer(false);
+                    }
+                }
+            }
+        }
+    });
+
+    ui.on_delete_tower({
+        let ui_handle = ui.as_weak();
+        let store = store.clone();
+        move || {
+            let Some(ui) = ui_handle.upgrade() else { return };
+            let id = ui.get_editing_tower_id();
+            let result = units_crud::delete_tower(&lock(&store).data, &id, &ui.get_current_user_role());
+            match result {
+                Err(e) => {
+                    ui.set_confirm_delete_tower(false);
+                    show_bottom_alert(&ui, "error", &e.to_string());
+                }
+                Ok(plan) => {
+                    let name = plan.towers.first().map(|t| t.name.clone()).unwrap_or_default();
+                    if persist_plan(&ui, &store, &plan) {
+                        tracing::info!("Torre eliminada (inactivada): {}", name);
+                        ui.set_status_text(format!("{} eliminada.", name).into());
+                        ui.set_show_tower_drawer(false);
+                    }
+                }
             }
         }
     });
@@ -475,13 +625,89 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let model = selected_parking_model.clone();
         move || {
             if let Some(ui) = ui_handle.upgrade() {
+                if ui.get_selected_tower().is_empty() {
+                    show_bottom_alert(&ui, "error", "Cree primero una torre o bloque.");
+                    return;
+                }
                 model.set_vec(Vec::new());
+                ui.set_editing_unit_id("".into());
+                ui.set_editing_unit_tower(ui.get_selected_tower());
                 ui.set_form_unit_number("".into());
+                ui.set_form_unit_type("Apartamento".into());
                 ui.set_form_intercom("".into());
                 ui.set_form_mobile("".into());
                 ui.set_form_landline("".into());
+                ui.set_confirm_delete_unit(false);
                 ui.set_show_parking_picker(false);
                 ui.set_show_drawer(true);
+            }
+        }
+    });
+
+    // Callback: Ficha del Inmueble al hacer clic en una fila de la tabla (D-34, REQ-UN-12)
+    ui.on_open_unit_detail({
+        let ui_handle = ui.as_weak();
+        let store = store.clone();
+        move |id| {
+            let Some(ui) = ui_handle.upgrade() else { return };
+            if ui_bind::fill_unit_detail(&ui, &lock(&store), &id) {
+                ui.set_confirm_delete_unit(false);
+                ui.set_show_unit_detail(true);
+                let unit = ui.get_detail_unit();
+                ui.set_status_text(format!("Ficha de {} - {}", unit.tower, unit.unit_number).into());
+            }
+        }
+    });
+
+    // Callback: Abrir el panel en modo edición con los datos del inmueble (REQ-UN-03)
+    ui.on_edit_unit({
+        let ui_handle = ui.as_weak();
+        let model = selected_parking_model.clone();
+        let store = store.clone();
+        move |id| {
+            let Some(ui) = ui_handle.upgrade() else { return };
+            let s = lock(&store);
+            let Some(unit) = s.data.units.iter().find(|u| u.is_active && u.id == id.as_str()) else {
+                return;
+            };
+            model.set_vec(ui_bind::unit_parking_display(&s, unit));
+            ui.set_editing_unit_id(unit.id.as_str().into());
+            ui.set_editing_unit_tower(unit.tower.as_str().into());
+            ui.set_form_unit_number(unit.unit_number.as_str().into());
+            ui.set_form_unit_type(unit.unit_type.as_str().into());
+            ui.set_form_intercom(unit.intercom.clone().unwrap_or_default().into());
+            ui.set_form_mobile(unit.mobile.clone().unwrap_or_default().into());
+            ui.set_form_landline(unit.landline.clone().unwrap_or_default().into());
+            ui.set_confirm_delete_unit(false);
+            ui.set_show_parking_picker(false);
+            ui.set_show_drawer(true);
+        }
+    });
+
+    // Callback: Eliminar (inactivar) el inmueble en edición (RN-UN-07..09)
+    ui.on_delete_unit({
+        let ui_handle = ui.as_weak();
+        let model = selected_parking_model.clone();
+        let store = store.clone();
+        move || {
+            let Some(ui) = ui_handle.upgrade() else { return };
+            let id = ui.get_editing_unit_id();
+            let result = units_crud::delete_unit(&lock(&store).data, &id, &ui.get_current_user_role());
+            match result {
+                Err(e) => {
+                    ui.set_confirm_delete_unit(false);
+                    show_bottom_alert(&ui, "error", &e.to_string());
+                }
+                Ok(plan) => {
+                    let label = plan.units.first().map(|u| u.label()).unwrap_or_default();
+                    if persist_plan(&ui, &store, &plan) {
+                        tracing::info!("Inmueble eliminado (inactivado): {}", label);
+                        model.set_vec(Vec::new());
+                        ui.set_status_text(format!("Inmueble {} eliminado.", label).into());
+                        ui.set_show_parking_picker(false);
+                        ui.set_show_drawer(false);
+                    }
+                }
             }
         }
     });
@@ -507,7 +733,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         move || {
             if let Some(ui) = ui_handle.upgrade() {
                 ui.set_parking_search_query("".into());
-                let available = ui_bind::available_parking(&lock(&store));
+                let available = ui_bind::available_parking(&lock(&store), &ui.get_editing_unit_id());
                 filter_and_update_picker(&ui, &available, &model, "");
                 ui.set_show_parking_picker(true);
                 ui.set_status_text("Seleccione un parqueadero del panel inferior o use el buscador.".into());
@@ -532,7 +758,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let store = store.clone();
         move |query| {
             if let Some(ui) = ui_handle.upgrade() {
-                let available = ui_bind::available_parking(&lock(&store));
+                let available = ui_bind::available_parking(&lock(&store), &ui.get_editing_unit_id());
                 filter_and_update_picker(&ui, &available, &model, query.as_str());
             }
         }
@@ -608,57 +834,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    // Callback: Guardar nuevo inmueble desde la terminal
+    // Callback: Guardar inmueble (crear o editar según `editing-unit-id`)
     ui.on_save_unit({
         let ui_handle = ui.as_weak();
         let model = selected_parking_model.clone();
         let store = store.clone();
         move || {
             let Some(ui) = ui_handle.upgrade() else { return };
-            let unit_number = ui.get_form_unit_number().trim().to_string();
-            if unit_number.is_empty() {
-                show_bottom_alert(&ui, "error", "Ingrese un número de inmueble antes de guardar.");
-                return;
-            }
-
-            let codes: Vec<String> = model.iter().map(|p| parking_code(&p).to_string()).collect();
-            let unit = UnitRecord {
-                id: uuid::Uuid::new_v4().to_string(), // RN-SYNC-07
-                tower: ui.get_selected_tower().to_string(),
-                unit_number: unit_number.clone(),
-                unit_type: "Apartamento".into(),
-                intercom: non_empty(&ui.get_form_intercom()),
-                mobile: non_empty(&ui.get_form_mobile()),
-                landline: non_empty(&ui.get_form_landline()),
-                parking: codes.clone(),
-            };
-
-            // Los parqueaderos asignados salen del pool disponible (D-12)
-            let assigned_spots: Vec<ParkingSpotRecord> = {
+            let form = unit_form(&ui, &model);
+            let editing_id = ui.get_editing_unit_id();
+            let result = {
                 let s = lock(&store);
-                s.data
-                    .parking_spots
-                    .iter()
-                    .filter(|p| codes.contains(&p.code))
-                    .map(|p| ParkingSpotRecord { assigned_unit_id: Some(unit.id.clone()), ..p.clone() })
-                    .collect()
+                if editing_id.is_empty() {
+                    units_crud::create_unit(&s.data, &ui.get_editing_unit_tower(), &form)
+                } else {
+                    units_crud::update_unit(&s.data, &editing_id, &form)
+                }
             };
-
-            let parking_summary = if codes.is_empty() { "Sin celda".to_string() } else { codes.join(", ") };
-            tracing::info!(
-                "Guardando Inmueble: {} en {} | Parqueaderos: {}",
-                unit.unit_number,
-                unit.tower,
-                parking_summary
-            );
-
-            if persist(&ui, &store, &[unit]) && persist(&ui, &store, &assigned_spots) {
+            let plan = match result {
+                Ok(plan) => plan,
+                Err(e) => return show_bottom_alert(&ui, "error", &e.to_string()),
+            };
+            let Some(unit) = plan.units.first().cloned() else { return };
+            let parking_summary = if unit.parking.is_empty() { "Sin celda".to_string() } else { unit.parking.join(", ") };
+            if persist_plan(&ui, &store, &plan) {
+                let verb = if editing_id.is_empty() { "registrado" } else { "actualizado" };
+                tracing::info!("Inmueble {}: {} | Parqueaderos: {}", verb, unit.label(), parking_summary);
                 model.set_vec(Vec::new());
-                ui.set_status_text(format!("Inmueble {} guardado exitosamente con [{}].", unit_number, parking_summary).into());
-                ui.set_form_unit_number("".into());
-                ui.set_form_intercom("".into());
-                ui.set_form_mobile("".into());
-                ui.set_form_landline("".into());
+                ui.set_status_text(format!("Inmueble {} {} con [{}].", unit.label(), verb, parking_summary).into());
                 ui.set_show_parking_picker(false);
                 ui.set_show_drawer(false);
             }
@@ -666,7 +869,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     // Sincronización en segundo plano en las ventanas 03/10/15/22 h (D-23)
-    sync::spawn_scheduler(store.clone(), SimServer::new(server_dir, SIM_NETWORK_LATENCY), ui.as_weak());
+    let sync_handle = sync::spawn_scheduler(store.clone(), server, ui.as_weak());
+
+    // Sincronización manual: botón SINCRONIZAR o tecla F9 (D-28)
+    ui.on_sync_now({
+        let ui_handle = ui.as_weak();
+        move || {
+            let Some(ui) = ui_handle.upgrade() else { return };
+            if sync_handle.request_now() {
+                tracing::info!("Sincronización manual solicitada por el vigilante");
+                ui.set_status_text("Sincronización manual iniciada.".into());
+            } else {
+                ui.set_status_text("Ya hay una sincronización en curso.".into());
+            }
+        }
+    });
 
     // Ajustar la ventana al tamaño del monitor (maximizada, no pantalla completa).
     // En Windows, Slint (backend winit) no aplica `set_maximized(true)` hecho antes

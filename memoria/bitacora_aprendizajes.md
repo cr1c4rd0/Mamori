@@ -57,3 +57,22 @@
 - **Trampa evitada (orden de confirmación):** si la cola se vacía al confirmar el Push *antes* de aplicar el Pull, un cambio remoto del mismo registro ya no choca con nada y pisa la versión local, violando "gana la terminal" (D-24). Solución: confirmar (retirar de la cola) **después** de aplicar el Pull; la idempotencia por `change_id` del servidor hace seguro reenviar si algo falla a mitad. Cubierto por el test `dos_terminales_se_sincronizan_y_gana_la_terminal`.
 - **Slint:** para refrescar listas desde un hilo de fondo se usa `slint::invoke_from_event_loop` + `ModelRc::as_any().downcast_ref::<VecModel<T>>()`, así las callbacks conservan su referencia al mismo modelo. `rotation-angle` está obsoleto: usar `transform-rotation` (+ `animation-tick()` para el giro del icono).
 - **Prueba manual:** `MAMORI_SYNC_INTERVAL_SECS=10` acelera las ventanas; crear el archivo `SIN_CONEXION` en la carpeta del servidor simula caída de internet; dos instancias con distinto `MAMORI_DATA_DIR` simulan dos porterías.
+
+---
+
+### [2026-11-24] Aprendizaje 09 — Servidor real (Axum + PostgreSQL 17), sync manual F9 y foco de teclado en Slint (D-27 a D-29)
+- **Entorno local:** PostgreSQL 17 instalado con `winget` como servicio `postgresql-x64-17`. Rol y base `mamori`; credenciales en `.env` (ignorado por git). El servidor aplica migraciones (`sqlx::migrate!`) y carga los datos iniciales si la base está vacía.
+- **Orden de `seq` vs orden de commit:** con varios Push concurrentes, `bigserial` puede asignar `seq=10` a una transacción que confirma después de `seq=11`; un Pull intermedio avanzaría el cursor a 11 y perdería el 10 para siempre. Se evita serializando los Push con `pg_advisory_xact_lock` y devolviendo como cursor el último `seq` leído (no `MAX(seq)`).
+- **Materialización tolerante:** cada cambio se aplica a las tablas relacionales dentro de un SAVEPOINT; si falla (p. ej. llave foránea), queda en `change_log.apply_error` y el Push no se rechaza, para que la terminal no quede reintentando para siempre.
+- **Bug previo de foco (Slint):** tras el login el `LineEdit` de contraseña (con el foco) se destruye y ningún atajo `F1..F9` respondía hasta hacer clic. Solución: `changed is-authenticated => { key-handler.focus(); }`. Verificado con capturas: F4 cambia de módulo y F9 sincroniza justo después del login.
+- **UX:** contra un servidor local la sync dura milisegundos; se mantiene "SINCRONIZANDO…" visible al menos 1 s para que el vigilante perciba la acción.
+- **Prueba de integración:** `cargo test -p mamori-client -- --ignored` ejecuta dos terminales contra el servidor real y borra su registro de prueba al final (cambio `delete` por el protocolo).
+
+---
+
+### [2026-11-24] Aprendizaje 10 — CRUD de Unidades & Predios (D-30 a D-33)
+- **Diseño:** las reglas viven en `crates/client-desktop/src/units_crud.rs` como funciones puras (`estado → Plan | CrudError`), probadas sin UI. `main.rs` solo lee el formulario, llama a la regla y guarda el `Plan` (torres → inmuebles → parqueaderos → residentes).
+- **Eliminar = inactivar** (`is_active`), con `#[serde(default = "default_true")]` para que los archivos y cambios anteriores sigan siendo válidos. Las torres antiguas se completan al abrir con ids fijos (`t1..t4`), iguales en terminales y servidor (`ensure_seed_towers`).
+- **Trampa evitada (orden de la cola):** compactar la cola con "quitar y agregar al final" reordenaba los cambios; un inmueble editado antes de sincronizar quedaba *después* de sus parqueaderos y el servidor rechazaba la llave foránea. Ahora la versión nueva reemplaza a la anterior en su misma posición (RN-SYNC-03).
+- **Foco de teclado:** al cerrar cualquier panel lateral el foco vuelve al manejador global (`changed show-* => key-handler.focus()`); antes F1..F9 dejaban de responder tras cerrar un panel.
+- **Pruebas automáticas de UI en Windows:** `mouse_event` inmediato tras `SetCursorPos` a veces no registra el clic en Slint (no hay hover previo); esperar ~150 ms entre mover y pulsar.

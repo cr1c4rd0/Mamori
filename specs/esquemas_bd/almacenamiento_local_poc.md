@@ -56,3 +56,13 @@ Una visita está **activa** mientras `exit_at` sea vacío; un paquete está **pe
 1. Serializar a `<archivo>.tmp`.
 2. `fsync` del archivo temporal.
 3. Renombrar `<archivo>.tmp` → `<archivo>` (reemplazo atómico en NTFS).
+
+---
+
+## 6. Servidor con el que sincroniza la terminal (D-29)
+
+| Variable | Efecto | Valor por defecto |
+| :--- | :--- | :--- |
+| `MAMORI_SERVER_URL` | URL del servidor real (Axum + PostgreSQL). | `http://127.0.0.1:8080` |
+| `MAMORI_SERVER=sim` | Usa el servidor simulado en archivos (`MAMORI_SERVER_DIR`) en lugar del real. | — (usa el real) |
+| `MAMORI_SYNC_INTERVAL_SECS` | **Solo desarrollo.** Sincroniza cada N segundos en lugar de las ventanas fijas. | — |

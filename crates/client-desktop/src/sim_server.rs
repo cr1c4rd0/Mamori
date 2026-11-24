@@ -6,6 +6,7 @@
 //! `crates/server` con los mismos DTOs de `mamori_shared::sync`.
 
 use crate::store::{read_json, write_json_atomic};
+pub use crate::transport::ServerError;
 use mamori_shared::sync::{
     DataSnapshot, PullRequest, PullResponse, PushRequest, PushResponse, SequencedChange,
 };
@@ -21,16 +22,8 @@ const LOCK_FILE: &str = ".lock";
 /// Si este archivo existe en la carpeta del servidor, se simula caída de conexión.
 pub const OFFLINE_FLAG_FILE: &str = "SIN_CONEXION";
 
-#[derive(Debug, thiserror::Error)]
-pub enum ServerError {
-    #[error("servidor no disponible (sin conexión)")]
-    Unreachable,
-    #[error("error de almacenamiento del servidor: {0}")]
-    Storage(String),
-}
-
 fn storage<E: std::fmt::Display>(e: E) -> ServerError {
-    ServerError::Storage(e.to_string())
+    ServerError::Failed(e.to_string())
 }
 
 #[derive(Clone)]

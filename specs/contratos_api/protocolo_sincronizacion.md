@@ -1,13 +1,13 @@
 # Contrato — Protocolo de Sincronización Terminal ⇄ Servidor
 
 **Decisiones:** D-22 a D-25 · **Fuente de verdad del código:** `crates/shared/src/sync.rs`  
-**Estado:** 🟡 Contrato del POC (implementado por el servidor simulado). Los endpoints HTTP reales en `crates/server` son 🔴 **[PENDIENTE POR DEFINIR]**; deberán aceptar exactamente estos DTOs.
+**Estado:** 🟢 Implementado por el servidor real (`crates/server`, D-29) y por el servidor simulado de pruebas. Sin autenticación en el POC: 🔴 **[PENDIENTE POR DEFINIR]** (DOM-07d).
 
 ---
 
 ## 1. Operaciones
 
-| Operación | Endpoint futuro (propuesta) | Request | Response |
+| Operación | Endpoint | Request | Response |
 | :--- | :--- | :--- | :--- |
 | **Push** | `POST /api/v1/sync/push` | `PushRequest` | `PushResponse` |
 | **Pull** | `POST /api/v1/sync/pull` | `PullRequest` | `PullResponse` |
@@ -40,4 +40,4 @@
 - Asigna `seq` creciente a cada cambio nuevo, en orden de llegada.
 - Si el `change_id` ya existe, no lo duplica y lo devuelve en `accepted` (RN-SYNC-05).
 - En Pull devuelve solo cambios con `seq > since_seq` y `origin_node ≠ node_id` (RN-SYNC-06).
-- Errores: `Unreachable` (sin conexión) o `Storage` (fallo de disco del servidor). La terminal no altera su cola ante un error.
+- Respuestas HTTP: `200` con el DTO; `400` si la petición es inválida (p. ej. `origin_node` ≠ `node_id`); `500` ante fallo de base de datos. La terminal trata cualquier fallo de red o respuesta ≠ 200 como sincronización fallida y no altera su cola.

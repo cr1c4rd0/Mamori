@@ -81,7 +81,17 @@ impl LocalStore {
         fs::create_dir_all(&dir).map_err(|source| StoreError::Io { path: dir.clone(), source })?;
 
         let data = match read_json::<DataSnapshot>(&dir.join(STATE_FILE))? {
-            Some(data) => data,
+            Some(mut data) => {
+                // Archivos anteriores a D-30 no tienen torres: se completan con las torres
+                // iniciales (mismos ids en todas las terminales y en el servidor).
+                if data.towers.is_empty() {
+                    let seed: DataSnapshot = serde_json::from_str(SEED_JSON)?;
+                    data.towers = seed.towers;
+                    write_json_atomic(&dir.join(STATE_FILE), &data)?;
+                    tracing::info!("Estado local actualizado: torres iniciales agregadas");
+                }
+                data
+            }
             None => {
                 let seed: DataSnapshot = serde_json::from_str(SEED_JSON)?;
                 write_json_atomic(&dir.join(STATE_FILE), &seed)?;
@@ -116,9 +126,14 @@ impl LocalStore {
     pub fn record<T: SyncRecord>(&mut self, record: &T) -> Result<(), StoreError> {
         let change = ChangeRecord::upsert(self.meta.node_id, record)?;
         self.data.apply(&change)?;
-        // RN-SYNC-03: en la cola solo queda la última versión de cada registro.
-        self.outbox.retain(|c| c.key() != change.key());
-        self.outbox.push(change);
+        // RN-SYNC-03: en la cola solo queda la última versión de cada registro, y queda
+        // en la POSICIÓN de la primera: así un inmueble creado antes que sus
+        // parqueaderos sigue llegando antes al servidor aunque se edite después
+        // (llave foránea parking_spots → units).
+        match self.outbox.iter_mut().find(|c| c.key() == change.key()) {
+            Some(pending) => *pending = change,
+            None => self.outbox.push(change),
+        }
         self.save_data()?;
         self.save_outbox()
     }
@@ -214,6 +229,19 @@ mod tests {
     }
 
     #[test]
+    fn archivo_antiguo_sin_torres_recibe_las_torres_iniciales() {
+        let dir = temp_dir("legacy");
+        fs::write(
+            dir.join(STATE_FILE),
+            r#"{"units":[],"parking_spots":[],"residents":[],"visits":[],"packages":[]}"#,
+        )
+        .unwrap();
+        let store = LocalStore::open(&dir).unwrap();
+        assert_eq!(store.data.towers.len(), 4);
+        assert!(store.outbox.is_empty(), "las torres iniciales no se envían al servidor");
+    }
+
+    #[test]
     fn los_cambios_sobreviven_a_reabrir() {
         let dir = temp_dir("persist");
         let node = {
@@ -234,6 +262,17 @@ mod tests {
         store.record(&resident("r9", "B")).unwrap();
         assert_eq!(store.outbox.len(), 1);
         assert_eq!(store.outbox[0].payload.as_ref().unwrap()["full_name"], "B");
+    }
+
+    #[test]
+    fn editar_un_pendiente_conserva_su_posicion_en_la_cola() {
+        let mut store = LocalStore::open(temp_dir("order")).unwrap();
+        store.record(&resident("r8", "Primero")).unwrap();
+        store.record(&resident("r9", "Segundo")).unwrap();
+        store.record(&resident("r8", "Primero editado")).unwrap();
+        let ids: Vec<&str> = store.outbox.iter().map(|c| c.record_id.as_str()).collect();
+        assert_eq!(ids, vec!["r8", "r9"]);
+        assert_eq!(store.outbox[0].payload.as_ref().unwrap()["full_name"], "Primero editado");
     }
 
     #[test]

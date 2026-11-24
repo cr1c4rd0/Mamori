@@ -24,6 +24,30 @@ pub struct UnitRecord {
     pub landline: Option<String>,
     /// Códigos de parqueaderos privados asignados (ej. `["P-101"]`).
     pub parking: Vec<String>,
+    /// `false` = eliminado (inactivado, D-31). Los datos anteriores a este campo son activos.
+    #[serde(default = "default_true")]
+    pub is_active: bool,
+}
+
+impl UnitRecord {
+    /// Etiqueta con la que lo referencian residentes, visitas y paquetes: `Torre 1 - Apto 101`.
+    pub fn label(&self) -> String {
+        format!("{} - {}", self.tower, self.unit_number)
+    }
+}
+
+fn default_true() -> bool {
+    true
+}
+
+/// Torre, bloque o manzana de la copropiedad (D-30). Se referencia por nombre desde `UnitRecord::tower`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TowerRecord {
+    pub id: String,
+    pub name: String,
+    /// `false` = eliminada (inactivada, RN-TR-02).
+    #[serde(default = "default_true")]
+    pub is_active: bool,
 }
 
 /// Celda de parqueadero de la copropiedad. La clave es `code`.
@@ -96,6 +120,7 @@ macro_rules! impl_sync_record {
     };
 }
 
+impl_sync_record!(TowerRecord, Collection::Towers, id);
 impl_sync_record!(UnitRecord, Collection::Units, id);
 impl_sync_record!(ParkingSpotRecord, Collection::ParkingSpots, code);
 impl_sync_record!(ResidentRecord, Collection::Residents, id);
@@ -105,6 +130,9 @@ impl_sync_record!(PackageRecord, Collection::Packages, id);
 /// Estado completo de un nodo (terminal o servidor central).
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct DataSnapshot {
+    /// Ausente en archivos anteriores a D-30; la terminal lo completa al abrir.
+    #[serde(default)]
+    pub towers: Vec<TowerRecord>,
     pub units: Vec<UnitRecord>,
     pub parking_spots: Vec<ParkingSpotRecord>,
     pub residents: Vec<ResidentRecord>,
@@ -134,6 +162,7 @@ impl DataSnapshot {
     /// Aplica un cambio (upsert del registro completo o borrado) al estado.
     pub fn apply(&mut self, change: &ChangeRecord) -> Result<(), serde_json::Error> {
         match change.collection {
+            Collection::Towers => apply_to(&mut self.towers, change),
             Collection::Units => apply_to(&mut self.units, change),
             Collection::ParkingSpots => apply_to(&mut self.parking_spots, change),
             Collection::Residents => apply_to(&mut self.residents, change),
@@ -150,6 +179,7 @@ impl DataSnapshot {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum Collection {
+    Towers,
     Units,
     ParkingSpots,
     Residents,
@@ -265,6 +295,17 @@ mod tests {
         del.payload = None;
         snap.apply(&del).unwrap();
         assert!(snap.residents.is_empty());
+    }
+
+    #[test]
+    fn datos_antiguos_sin_torres_ni_is_active_siguen_siendo_validos() {
+        let old = r#"{"units":[{"id":"u1","tower":"Torre 1","unit_number":"101","unit_type":"Apartamento",
+            "intercom":null,"mobile":"300","landline":null,"parking":[]}],
+            "parking_spots":[],"residents":[],"visits":[],"packages":[]}"#;
+        let snap: DataSnapshot = serde_json::from_str(old).unwrap();
+        assert!(snap.towers.is_empty());
+        assert!(snap.units[0].is_active);
+        assert_eq!(snap.units[0].label(), "Torre 1 - 101");
     }
 
     #[test]

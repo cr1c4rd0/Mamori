@@ -55,3 +55,15 @@ Característica: Operación local-first y sincronización de la terminal de port
     Cuando la terminal A sincroniza
     Entonces el residente "r1" de la terminal A conserva su versión local
     Y el servidor queda con la versión de la terminal A
+
+  Escenario: Sincronización manual con F9 o el botón SINCRONIZAR
+    Dado que el vigilante acaba de iniciar sesión
+    Cuando pulsa la tecla "F9"
+    Entonces el indicador muestra "SINCRONIZANDO…" y el botón queda deshabilitado
+    Y al terminar muestra "ÚLTIMA SINCRONIZACIÓN" con la hora actual
+
+  Escenario: Ignorar una sincronización manual si ya hay una en curso
+    Dado que hay una sincronización en curso
+    Cuando el vigilante pulsa "F9"
+    Entonces no se inicia otra sincronización
+    Y la barra de estado indica "Ya hay una sincronización en curso."

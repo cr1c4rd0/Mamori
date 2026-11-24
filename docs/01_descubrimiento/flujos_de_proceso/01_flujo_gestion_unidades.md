@@ -4,7 +4,7 @@
 **Módulo:** Configuración de Estructura Física y Predios  
 **Actores:** Administrador de la Copropiedad (`ACT-02`), Guarda de Portería (`ACT-01` con permisos)  
 **Estado:** 🟢 `[CONFIRMADO POR FUNDADOR]`  
-**Última Actualización:** 2026-11-22  
+**Última Actualización:** 2026-11-24  
 
 ---
 
@@ -62,6 +62,7 @@ flowchart TD
 ### 🖥️ Vista 2: Directorio de Inmuebles (Panel Central)
 * Tabla de predios: `INMUEBLE` | `TIPO` | `CITÓFONO / EXT.` | `CELULAR` | `TEL. FIJO` | `PARQUEADEROS PRIVADOS`.
 * Botón: `NUEVO INMUEBLE` que abre el panel lateral derecho.
+* Clic en cualquier fila: abre la **Ficha del Inmueble** (panel lateral de solo lectura con contactos, parqueaderos, residentes, visitas dentro y paquetes pendientes) y desde ahí `EDITAR` (D-34, REQ-UN-12).
 
 ### 🖥️ Vista 3: Panel Lateral Derecho (Side Drawer) de Nuevo Inmueble
 * Despliegue lateral de 500px sin tapar el contexto, descartable con tecla `ESC` o botón de cierre.
@@ -88,3 +89,13 @@ flowchart TD
   - **Exclusión reactiva inmediata en UI:** Tan pronto como una celda es elegida en el Option List, desaparece de las opciones desplegables del formulario. Si se remueve o el formulario se cancela, se restituye al pool de opciones disponibles.
   - Al guardar la unidad, los parqueaderos seleccionados cambian permanentemente su estado a **`Asignado`** y quedan bloqueados para cualquier otra unidad.
 * `RN-UN-06 [Múltiples Parqueaderos]:` Un inmueble puede tener `0`, `1` o `N` parqueaderos privados asociados (ej. 2 carros + 1 moto).
+* `RN-UN-07..11`, `RN-TR-01..03`: ver la sección 5.
+
+---
+
+## 5. CRUD de Inmuebles y Torres (D-30 a D-33 — 2026-11-24)
+
+* **Inmuebles:** ver (filtrados por la torre seleccionada), crear, editar (número, tipo, contactos, parqueaderos) y eliminar.
+* **Torres / Bloques:** crear, renombrar y eliminar; el contador de inmuebles es real.
+* **Eliminar = inactivar** (D-31); bloqueado si el inmueble tiene residentes (D-32); **solo el Administrador elimina** (D-33).
+* Reglas completas, permisos y pendientes: `specs/reglas_negocio/RN_unidades_y_torres.md`.

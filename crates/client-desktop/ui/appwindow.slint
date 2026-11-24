@@ -29,11 +29,15 @@ component TacticalButton inherits Rectangle {
     in property <bool> has-icon: false;
     in property <bool> active: false;
     in property <bool> primary: false;
+    // Acción destructiva (eliminar): estilo rojo
+    in property <bool> danger: false;
     in property <length> font-size: 13px;
     in property <int> h-stretch: 0;
     callback clicked;
 
-    property <color> fg-color: Theme.dark-mode
+    property <color> fg-color: root.danger
+        ? (Theme.dark-mode ? #f87171 : #b91c1c)
+        : Theme.dark-mode
         ? (root.active ? #ffffff : (root.primary ? #4ade80 : (touch.has-hover ? Theme.text-primary : Theme.text-secondary)))
         : (root.active ? #0369a1 : (root.primary ? #15803d : (touch.has-hover ? #0f172a : #334155)));
 
@@ -42,10 +46,14 @@ component TacticalButton inherits Rectangle {
     min-width: txt.min-width + (root.has-icon ? 44px : 24px);
     border-radius: 6px;
     border-width: Theme.dark-mode ? 1px : 1.5px;
-    border-color: Theme.dark-mode
+    border-color: root.danger
+        ? (Theme.dark-mode ? #ef4444 : #dc2626)
+        : Theme.dark-mode
         ? (root.active ? #38bdf8 : (root.primary ? #22c55e : (touch.has-hover ? #3f3f46 : Theme.border-strong)))
         : (root.active ? #0284c7 : (root.primary ? #16a34a : (touch.has-hover ? #64748b : #cbd5e1)));
-    background: Theme.dark-mode
+    background: root.danger
+        ? (Theme.dark-mode ? (touch.has-hover ? #7f1d1d : #450a0a) : (touch.has-hover ? #fee2e2 : transparent))
+        : Theme.dark-mode
         ? (root.active ? #0c4a6e : (root.primary ? #14532d : (touch.has-hover ? Theme.bg-hover : Theme.bg-panel)))
         : (root.active ? (touch.has-hover ? #e0f2fe : transparent) : (root.primary ? (touch.has-hover ? #dcfce7 : transparent) : (touch.has-hover ? #f1f5f9 : transparent)));
 
@@ -332,6 +340,104 @@ export struct TowerItem {
     unit_count: int,
 }
 
+// Fila genérica de las listas de la Ficha del Inmueble (D-34)
+export struct DetailRow {
+    title: string,
+    subtitle: string,
+    meta: string,
+}
+
+// Par "ETIQUETA: valor" de la Ficha del Inmueble
+component DetailField inherits HorizontalLayout {
+    in property <string> label;
+    in property <string> value;
+    in property <color> value-color: Theme.text-primary;
+    height: 30px;
+    Text {
+        text: root.label;
+        width: 150px;
+        color: Theme.text-muted;
+        font-size: 11px;
+        font-weight: 800;
+        vertical-alignment: center;
+    }
+    Text {
+        text: root.value;
+        color: root.value-color;
+        font-size: 13px;
+        font-weight: 700;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+}
+
+// Sección con título, contador y lista de filas (o texto si está vacía)
+component DetailList inherits VerticalLayout {
+    in property <string> title;
+    in property <[DetailRow]> rows;
+    in property <string> empty-text;
+    in property <color> accent: #38bdf8;
+    spacing: 6px;
+
+    Text {
+        text: root.title + "  (" + root.rows.length + ")";
+        color: root.accent;
+        font-size: 11px;
+        font-weight: 800;
+    }
+
+    if (root.rows.length == 0): Rectangle {
+        height: 36px;
+        background: Theme.bg-surface;
+        border-radius: 6px;
+        border-width: 1px;
+        border-color: Theme.border-subtle;
+        HorizontalLayout {
+            padding-left: 12px;
+            Text {
+                text: root.empty-text;
+                color: Theme.text-faint;
+                font-size: 12px;
+                vertical-alignment: center;
+            }
+        }
+    }
+
+    for row in root.rows: Rectangle {
+        height: 48px;
+        background: Theme.bg-surface;
+        border-radius: 6px;
+        border-width: 1px;
+        border-color: Theme.border-subtle;
+        HorizontalLayout {
+            padding-left: 12px;
+            padding-right: 12px;
+            spacing: 10px;
+            Rectangle {
+                width: 6px;
+                height: 6px;
+                border-radius: 3px;
+                background: root.accent;
+                y: 21px;
+            }
+            VerticalLayout {
+                alignment: center;
+                spacing: 2px;
+                horizontal-stretch: 1;
+                Text { text: row.title; color: Theme.text-primary; font-size: 13px; font-weight: 700; overflow: elide; }
+                if (row.subtitle != ""): Text { text: row.subtitle; color: Theme.text-muted; font-size: 11px; font-weight: 600; overflow: elide; }
+            }
+            if (row.meta != ""): Text {
+                text: row.meta;
+                color: Theme.text-secondary;
+                font-size: 12px;
+                font-weight: 700;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
 // ============================================================================
 // VENTANA PRINCIPAL — MAMORI BLACK EDITION
 // ============================================================================
@@ -388,7 +494,7 @@ export component AppWindow inherits Window {
     in-out property <string> form-resident-role: "Propietario";
     in-out property <string> form-resident-mobile: "";
     in-out property <string> form-resident-email: "";
-    in-out property <string> selected-tower: "Torre 1";
+    in-out property <string> selected-tower: "";
     in-out property <bool> show-drawer: false;
     in-out property <bool> show-parking-modal: false;
     in-out property <bool> show-parking-picker: false;
@@ -423,22 +529,30 @@ export component AppWindow inherits Window {
     in-out property <[string]> selected-parking-list: [];
     in-out property <string> new-parking-selector-value: "-- Seleccionar parqueadero --";
 
-    // Listas reactivas
-    in-out property <[TowerItem]> towers: [
-        { id: "t1", name: "Torre 1", unit_count: 24 },
-        { id: "t2", name: "Torre 2", unit_count: 24 },
-        { id: "t3", name: "Bloque Norte", unit_count: 16 },
-        { id: "t4", name: "Manzana A (Casas)", unit_count: 12 },
-    ];
+    // Listas reactivas (se llenan desde el almacenamiento local en Rust)
+    in-out property <[TowerItem]> towers: [];
+    // Todos los inmuebles activos (KPI del Home y selector de Residentes)
+    in-out property <[UnitItem]> units: [];
+    // Inmuebles activos de la torre seleccionada (tabla del módulo Unidades)
+    in-out property <[UnitItem]> tower-units: [];
 
-    in-out property <[UnitItem]> units: [
-        { id: "u1", tower: "Torre 1", unit_number: "Apto 101", unit_type: "Apartamento", intercom: "Ext. 101", mobile: "300 123 4567", landline: "(604) 444 0001", parking: "P-101" },
-        { id: "u2", tower: "Torre 1", unit_number: "Apto 102", unit_type: "Apartamento", intercom: "Sin citófono", mobile: "315 987 6543", landline: "—", parking: "P-102, P-102B" },
-        { id: "u3", tower: "Torre 1", unit_number: "Apto 103", unit_type: "Apartamento", intercom: "Ext. 103", mobile: "311 555 8899", landline: "—", parking: "Sin celda" },
-        { id: "u4", tower: "Torre 1", unit_number: "Apto 201", unit_type: "Apartamento", intercom: "Ext. 201", mobile: "310 444 3322", landline: "(604) 444 0004", parking: "P-201" },
-        { id: "u5", tower: "Torre 1", unit_number: "Apto 202", unit_type: "Apartamento", intercom: "Ext. 202", mobile: "318 777 6655", landline: "—", parking: "P-202" },
-        { id: "u6", tower: "Torre 1", unit_number: "Apto 203", unit_type: "Apartamento", intercom: "Sin citófono", mobile: "301 222 1100", landline: "—", parking: "P-203" },
-    ];
+    // CRUD de Unidades & Predios (D-30 a D-33)
+    property <bool> is-admin: root.current-user-role == "Administrador";
+    in-out property <string> editing-unit-id: "";       // vacío = creando
+    in-out property <string> editing-unit-tower: "";
+    in-out property <bool> confirm-delete-unit: false;
+    in-out property <bool> show-tower-drawer: false;
+    in-out property <string> editing-tower-id: "";      // vacío = creando
+    in-out property <string> form-tower-name: "";
+    in-out property <bool> confirm-delete-tower: false;
+
+    // Ficha del Inmueble (D-34): panel de solo lectura al hacer clic en una fila
+    in-out property <bool> show-unit-detail: false;
+    in-out property <UnitItem> detail-unit;
+    in-out property <[DetailRow]> detail-parking: [];
+    in-out property <[DetailRow]> detail-residents: [];
+    in-out property <[DetailRow]> detail-visits: [];
+    in-out property <[DetailRow]> detail-packages: [];
 
     callback attempt-login();
     callback logout();
@@ -465,8 +579,34 @@ export component AppWindow inherits Window {
     callback pick-parking(string);
     callback remove-parking-selection(int);
     callback create-new-parking();
+    callback sync-now();
+    callback edit-unit(string);
+    callback open-unit-detail(string);
+    callback delete-unit();
+    callback new-tower();
+    callback edit-tower();
+    callback save-tower();
+    callback cancel-tower-drawer();
+    callback delete-tower();
 
     forward-focus: key-handler;
+
+    // Al iniciar sesión, el campo de contraseña (que tenía el foco) desaparece y el
+    // teclado quedaba sin destino: los atajos F1..F9 no respondían. Se devuelve el
+    // foco al manejador global de teclas.
+    changed is-authenticated => {
+        if (root.is-authenticated) {
+            key-handler.focus();
+        }
+    }
+    // Lo mismo al cerrar un panel lateral: el campo enfocado desaparece con él.
+    changed show-drawer => { if (!root.show-drawer) { key-handler.focus(); } }
+    changed show-tower-drawer => { if (!root.show-tower-drawer) { key-handler.focus(); } }
+    changed show-unit-detail => { if (!root.show-unit-detail && !root.show-drawer) { key-handler.focus(); } }
+    changed show-resident-drawer => { if (!root.show-resident-drawer) { key-handler.focus(); } }
+    changed show-parking-modal => {
+        if (!root.show-parking-modal && !root.show-drawer) { key-handler.focus(); }
+    }
 
     key-handler := FocusScope {
         key-pressed(event) => {
@@ -476,6 +616,14 @@ export component AppWindow inherits Window {
             if (event.text == Key.Escape) {
                 if (root.show-parking-modal) {
                     root.show-parking-modal = false;
+                    return accept;
+                }
+                if (root.show-tower-drawer) {
+                    root.cancel-tower-drawer();
+                    return accept;
+                }
+                if (root.show-unit-detail) {
+                    root.show-unit-detail = false;
                     return accept;
                 }
                 if (root.show-parking-picker) {
@@ -503,6 +651,7 @@ export component AppWindow inherits Window {
             if (event.text == Key.F6) { root.quick-action("minuta"); return accept; }
             if (event.text == Key.F7) { root.quick-action("unidades"); return accept; }
             if (event.text == Key.F8) { root.quick-action("config"); return accept; }
+            if (event.text == Key.F9) { root.sync-now(); return accept; }
             return reject;
         }
 
@@ -824,6 +973,46 @@ export component AppWindow inherits Window {
                                     color: Theme.text-secondary;
                                     font-size: 11px;
                                     font-weight: 600;
+                                }
+                            }
+
+                            // Sincronización manual (D-28): clic o F9
+                            VerticalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    property <bool> busy: root.sync-state == "syncing";
+                                    width: 132px;
+                                    height: 28px;
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: !self.busy && sync-touch.has-hover ? #38bdf8 : Theme.border-strong;
+                                    background: !self.busy && sync-touch.has-hover ? Theme.bg-hover : Theme.bg-elevated;
+                                    opacity: self.busy ? 0.45 : 1.0;
+
+                                    HorizontalLayout {
+                                        alignment: center;
+                                        spacing: 6px;
+                                        Text {
+                                            text: "[F9]";
+                                            color: #38bdf8;
+                                            font-size: 10px;
+                                            font-weight: 800;
+                                            vertical-alignment: center;
+                                        }
+                                        Text {
+                                            text: "SINCRONIZAR";
+                                            color: Theme.text-primary;
+                                            font-size: 10px;
+                                            font-weight: 800;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+
+                                    sync-touch := TouchArea {
+                                        enabled: !parent.busy;
+                                        mouse-cursor: pointer;
+                                        clicked => { root.sync-now(); }
+                                    }
                                 }
                             }
                         }
@@ -1250,8 +1439,8 @@ export component AppWindow inherits Window {
                             background: root.selected-tower == tower.name ? #111827 : (tower-touch.has-hover ? #141417 : #050507);
 
                             tower-touch := TouchArea {
+                                mouse-cursor: pointer;
                                 clicked => {
-                                    root.selected-tower = tower.name;
                                     root.select-tower(tower.name);
                                 }
                             }
@@ -1270,14 +1459,14 @@ export component AppWindow inherits Window {
                                 }
 
                                 Rectangle {
-                                    width: 68px;
+                                    width: 84px;
                                     height: 22px;
                                     border-radius: 11px;
                                     background: Theme.border-subtle;
                                     y: 13px;
 
                                     Text {
-                                        text: tower.unit_count + " aptos";
+                                        text: tower.unit_count + (tower.unit_count == 1 ? " inmueble" : " inmuebles");
                                         color: Theme.text-secondary;
                                         font-size: 11px;
                                         font-weight: 600;
@@ -1288,6 +1477,12 @@ export component AppWindow inherits Window {
                             }
                         }
 
+                        if (root.towers.length == 0): Text {
+                            text: "No hay torres registradas.";
+                            color: Theme.text-faint;
+                            font-size: 12px;
+                        }
+
                         Rectangle { height: 6px; }
 
                         TacticalButton {
@@ -1296,7 +1491,7 @@ export component AppWindow inherits Window {
                             has-icon: true;
                             h-stretch: 1;
                             clicked => {
-                                root.status-text = "Iniciando creación de nueva torre...";
+                                root.new-tower();
                             }
                         }
 
@@ -1355,13 +1550,24 @@ export component AppWindow inherits Window {
                                 }
                             }
 
-                            TacticalButton {
-                                text: "NUEVO INMUEBLE";
-                                icon: @image-url("icons/plus.svg");
-                                has-icon: true;
-                                primary: true;
-                                clicked => {
-                                    root.open-drawer();
+                            if (root.selected-tower != ""): HorizontalLayout {
+                                spacing: 8px;
+                                TacticalButton {
+                                    text: "EDITAR TORRE";
+                                    icon: @image-url("icons/settings.svg");
+                                    has-icon: true;
+                                    clicked => {
+                                        root.edit-tower();
+                                    }
+                                }
+                                TacticalButton {
+                                    text: "NUEVO INMUEBLE";
+                                    icon: @image-url("icons/plus.svg");
+                                    has-icon: true;
+                                    primary: true;
+                                    clicked => {
+                                        root.open-drawer();
+                                    }
                                 }
                             }
                         }
@@ -1388,16 +1594,35 @@ export component AppWindow inherits Window {
                                     Text { text: "CITÓFONO / EXT."; width: 140px; color: Theme.text-muted; font-size: 11px; font-weight: 800; vertical-alignment: center; }
                                     Text { text: "CELULAR"; width: 140px; color: Theme.text-muted; font-size: 11px; font-weight: 800; vertical-alignment: center; }
                                     Text { text: "TEL. FIJO"; width: 120px; color: Theme.text-muted; font-size: 11px; font-weight: 800; vertical-alignment: center; }
-                                    Text { text: "PARQUEADEROS PRIVADOS"; color: Theme.text-muted; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: "PARQUEADEROS PRIVADOS"; horizontal-stretch: 1; color: Theme.text-muted; font-size: 11px; font-weight: 800; vertical-alignment: center; }
+                                    Text { text: "ACCIONES"; width: 96px; color: Theme.text-muted; font-size: 11px; font-weight: 800; vertical-alignment: center; horizontal-alignment: right; }
                                 }
                             }
 
-                            for unit in root.units: Rectangle {
+                            if (root.tower-units.length == 0 && root.selected-tower != ""): Rectangle {
                                 height: 42px;
-                                background: Theme.bg-surface;
+                                Text {
+                                    text: "Esta torre aún no tiene inmuebles. Use NUEVO INMUEBLE para registrar el primero.";
+                                    color: Theme.text-faint;
+                                    font-size: 12px;
+                                }
+                            }
+
+                            for unit in root.tower-units: Rectangle {
+                                height: 42px;
+                                background: row-touch.has-hover ? Theme.bg-hover : Theme.bg-surface;
                                 border-radius: 4px;
                                 border-width: 1px;
-                                border-color: #141417;
+                                border-color: root.show-unit-detail && root.detail-unit.id == unit.id
+                                    ? #4ade80
+                                    : (row-touch.has-hover ? Theme.border-strong : #141417);
+
+                                // Clic en cualquier parte de la fila: Ficha del Inmueble (D-34).
+                                // El botón EDITAR queda encima y recibe su propio clic.
+                                row-touch := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.open-unit-detail(unit.id); }
+                                }
 
                                 HorizontalLayout {
                                     padding-left: 14px;
@@ -1430,10 +1655,26 @@ export component AppWindow inherits Window {
                                     
                                     Text {
                                         text: unit.parking;
+                                        horizontal-stretch: 1;
                                         color: unit.parking == "Sin celda" ? #52525b : #38bdf8;
                                         font-size: 13px;
                                         font-weight: 700;
                                         vertical-alignment: center;
+                                    }
+
+                                    HorizontalLayout {
+                                        width: 96px;
+                                        alignment: end;
+                                        padding-top: 5px;
+                                        padding-bottom: 5px;
+                                        TacticalButton {
+                                            text: "EDITAR";
+                                            font-size: 11px;
+                                            height: 30px;
+                                            clicked => {
+                                                root.edit-unit(unit.id);
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -1895,7 +2136,7 @@ export component AppWindow inherits Window {
             HorizontalLayout {
                 alignment: space-between;
                 Text {
-                    text: "ATAJOS: [F1] HOME | [F2] VISITAS | [F3] VEHÍCULOS | [F4] PAQUETERÍA | [F5] RESIDENTES | [F6] MINUTA | [F7] UNIDADES | [F8] CONFIG";
+                    text: "ATAJOS: [F1] HOME | [F2] VISITAS | [F3] VEHÍCULOS | [F4] PAQUETERÍA | [F5] RESIDENTES | [F6] MINUTA | [F7] UNIDADES | [F8] CONFIG | [F9] SINCRONIZAR";
                     color: Theme.text-faint;
                     font-size: 11px;
                     font-weight: 700;
@@ -1960,13 +2201,13 @@ export component AppWindow inherits Window {
                         VerticalLayout {
                             spacing: 2px;
                             Text {
-                                text: "NUEVO INMUEBLE";
+                                text: root.editing-unit-id == "" ? "NUEVO INMUEBLE" : "EDITAR INMUEBLE";
                                 color: Theme.text-primary;
                                 font-size: 18px;
                                 font-weight: 900;
                             }
                             Text {
-                                text: "Torre destino: " + root.selected-tower;
+                                text: (root.editing-unit-id == "" ? "Torre destino: " : "Torre: ") + root.editing-unit-tower;
                                 color: #38bdf8;
                                 font-size: 13px;
                                 font-weight: 600;
@@ -2009,6 +2250,24 @@ export component AppWindow inherits Window {
                                 horizontal-stretch: 1;
                                 text <=> root.form-unit-number;
                                 placeholder-text: "Ej: 301, 102A, Casa 15";
+                            }
+                        }
+
+                        // Tipo de inmueble (RN-UN-11)
+                        VerticalLayout {
+                            vertical-stretch: 0;
+                            spacing: 4px;
+                            Text { text: "TIPO DE INMUEBLE:"; color: Theme.text-secondary; font-size: 11px; font-weight: 800; }
+                            HorizontalLayout {
+                                spacing: 6px;
+                                for unit-type in ["Apartamento", "Casa", "Local", "Oficina"]: TacticalButton {
+                                    text: unit-type;
+                                    font-size: 11px;
+                                    height: 32px;
+                                    h-stretch: 1;
+                                    active: root.form-unit-type == unit-type;
+                                    clicked => { root.form-unit-type = unit-type; }
+                                }
                             }
                         }
 
@@ -2171,7 +2430,7 @@ export component AppWindow inherits Window {
                         spacing: 8px;
 
                         TacticalButton {
-                            text: "GUARDAR INMUEBLE";
+                            text: root.editing-unit-id == "" ? "GUARDAR INMUEBLE" : "GUARDAR CAMBIOS";
                             icon: @image-url("icons/check.svg");
                             has-icon: true;
                             primary: true;
@@ -2190,6 +2449,25 @@ export component AppWindow inherits Window {
                             font-size: 12px;
                             clicked => {
                                 root.cancel-drawer();
+                            }
+                        }
+
+                        // Eliminar (inactivar) en modo edición: solo visible para el
+                        // Administrador (RN-UN-09); Rust lo valida de nuevo al ejecutar.
+                        // Confirmación con segundo clic, sin modales centrados (D-13).
+                        if (root.editing-unit-id != "" && root.is-admin): TacticalButton {
+                            text: root.confirm-delete-unit ? "CONFIRMAR: ELIMINAR ESTE INMUEBLE" : "ELIMINAR INMUEBLE";
+                            icon: @image-url("icons/trash-2.svg");
+                            has-icon: true;
+                            danger: true;
+                            h-stretch: 1;
+                            font-size: 12px;
+                            clicked => {
+                                if (root.confirm-delete-unit) {
+                                    root.delete-unit();
+                                } else {
+                                    root.confirm-delete-unit = true;
+                                }
                             }
                         }
                     }
@@ -2553,6 +2831,344 @@ export component AppWindow inherits Window {
                             font-size: 12px;
                             clicked => {
                                 root.show-parking-modal = false;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ========================================================================
+    // CAPA LATERAL: FICHA DEL INMUEBLE (SOLO LECTURA) — D-34 / REQ-UN-12
+    // ========================================================================
+    if (root.show-unit-detail): Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #000000a6;
+
+        TouchArea {
+            clicked => { root.show-unit-detail = false; }
+        }
+
+        Rectangle {
+            x: parent.width - self.width;
+            y: 0;
+            width: 500px;
+            height: parent.height;
+            background: Theme.bg-panel;
+            border-width: 1px;
+            border-color: #27272a;
+
+            TouchArea {
+                clicked => { /* Absorbe clics internos */ }
+            }
+
+            detail-scope := FocusScope {
+                key-pressed(event) => {
+                    if (event.text == Key.Escape) {
+                        root.show-unit-detail = false;
+                        return accept;
+                    }
+                    return reject;
+                }
+
+                VerticalLayout {
+                    padding: 22px;
+                    spacing: 14px;
+
+                    // CABECERA
+                    HorizontalLayout {
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            spacing: 2px;
+                            Text {
+                                text: "FICHA DEL INMUEBLE";
+                                color: Theme.text-muted;
+                                font-size: 11px;
+                                font-weight: 800;
+                            }
+                            Text {
+                                text: root.detail-unit.unit-number;
+                                color: Theme.text-primary;
+                                font-size: 22px;
+                                font-weight: 900;
+                            }
+                            Text {
+                                text: root.detail-unit.tower + "  •  " + root.detail-unit.unit-type;
+                                color: #4ade80;
+                                font-size: 13px;
+                                font-weight: 700;
+                            }
+                        }
+
+                        Rectangle {
+                            width: 32px;
+                            height: 32px;
+                            border-radius: 16px;
+                            background: close-dt-touch.has-hover ? #27272a : #18181b;
+
+                            close-dt-touch := TouchArea {
+                                clicked => { root.show-unit-detail = false; }
+                            }
+
+                            Image {
+                                source: @image-url("icons/x.svg");
+                                width: 16px;
+                                height: 16px;
+                                colorize: close-dt-touch.has-hover ? #ffffff : #a1a1aa;
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border-subtle; }
+
+                    ScrollView {
+                        vertical-stretch: 1;
+
+                        VerticalLayout {
+                            spacing: 16px;
+                            padding-right: 8px;
+
+                            // CONTACTO
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text {
+                                    text: "CANALES DE CONTACTO";
+                                    color: #38bdf8;
+                                    font-size: 11px;
+                                    font-weight: 800;
+                                }
+                                DetailField {
+                                    label: "CITÓFONO / EXT.";
+                                    value: root.detail-unit.intercom;
+                                    value-color: root.detail-unit.intercom == "Sin citófono" ? #f87171 : #4ade80;
+                                }
+                                DetailField { label: "CELULAR"; value: root.detail-unit.mobile; }
+                                DetailField {
+                                    label: "TELÉFONO FIJO";
+                                    value: root.detail-unit.landline;
+                                    value-color: Theme.text-secondary;
+                                }
+                            }
+
+                            DetailList {
+                                title: "PARQUEADEROS PRIVADOS";
+                                rows: root.detail-parking;
+                                empty-text: "Sin parqueaderos asignados";
+                                accent: #38bdf8;
+                            }
+
+                            DetailList {
+                                title: "RESIDENTES";
+                                rows: root.detail-residents;
+                                empty-text: "Sin residentes asociados";
+                                accent: #2dd4bf;
+                            }
+
+                            DetailList {
+                                title: "VISITAS DENTRO DE LA UNIDAD";
+                                rows: root.detail-visits;
+                                empty-text: "No hay visitas activas hacia este inmueble";
+                                accent: #60a5fa;
+                            }
+
+                            DetailList {
+                                title: "PAQUETES PENDIENTES POR ENTREGAR";
+                                rows: root.detail-packages;
+                                empty-text: "No hay paquetes pendientes";
+                                accent: #fbbf24;
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border-subtle; }
+
+                    VerticalLayout {
+                        vertical-stretch: 0;
+                        spacing: 8px;
+
+                        TacticalButton {
+                            text: "EDITAR INMUEBLE";
+                            icon: @image-url("icons/settings.svg");
+                            has-icon: true;
+                            primary: true;
+                            h-stretch: 1;
+                            font-size: 13px;
+                            clicked => {
+                                root.show-unit-detail = false;
+                                root.edit-unit(root.detail-unit.id);
+                            }
+                        }
+
+                        // Eliminar desde la ficha: mismas reglas que en edición (RN-UN-07..09).
+                        // Solo visible para el Administrador.
+                        if (root.is-admin): TacticalButton {
+                            text: root.confirm-delete-unit ? "CONFIRMAR: ELIMINAR ESTE INMUEBLE" : "ELIMINAR INMUEBLE";
+                            icon: @image-url("icons/trash-2.svg");
+                            has-icon: true;
+                            danger: true;
+                            h-stretch: 1;
+                            font-size: 12px;
+                            clicked => {
+                                if (root.confirm-delete-unit) {
+                                    root.editing-unit-id = root.detail-unit.id;
+                                    root.delete-unit();
+                                } else {
+                                    root.confirm-delete-unit = true;
+                                }
+                            }
+                        }
+
+                        TacticalButton {
+                            text: "CERRAR [ESC]";
+                            icon: @image-url("icons/x.svg");
+                            has-icon: true;
+                            h-stretch: 1;
+                            font-size: 12px;
+                            clicked => { root.show-unit-detail = false; }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ========================================================================
+    // CAPA LATERAL: PANEL DERECHO (DRAWER DE TORRE / BLOQUE) — D-30
+    // ========================================================================
+    if (root.show-tower-drawer): Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #000000a6;
+
+        TouchArea {
+            clicked => { root.cancel-tower-drawer(); }
+        }
+
+        Rectangle {
+            x: parent.width - self.width;
+            y: 0;
+            width: 500px;
+            height: parent.height;
+            background: Theme.bg-panel;
+            border-width: 1px;
+            border-color: #27272a;
+
+            TouchArea {
+                clicked => { /* Absorbe clics internos */ }
+            }
+
+            tower-drawer-scope := FocusScope {
+                key-pressed(event) => {
+                    if (event.text == Key.Escape) {
+                        root.cancel-tower-drawer();
+                        return accept;
+                    }
+                    return reject;
+                }
+
+                VerticalLayout {
+                    padding: 22px;
+                    spacing: 14px;
+
+                    HorizontalLayout {
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            spacing: 2px;
+                            Text {
+                                text: root.editing-tower-id == "" ? "NUEVA TORRE / BLOQUE" : "EDITAR TORRE / BLOQUE";
+                                color: Theme.text-primary;
+                                font-size: 18px;
+                                font-weight: 900;
+                            }
+                            Text {
+                                text: root.editing-tower-id == ""
+                                    ? "Estructura física de la copropiedad"
+                                    : "Al renombrar se actualizan sus inmuebles y residentes";
+                                color: #38bdf8;
+                                font-size: 13px;
+                                font-weight: 600;
+                            }
+                        }
+
+                        Rectangle {
+                            width: 32px;
+                            height: 32px;
+                            border-radius: 16px;
+                            background: close-tw-touch.has-hover ? #27272a : #18181b;
+
+                            close-tw-touch := TouchArea {
+                                clicked => { root.cancel-tower-drawer(); }
+                            }
+
+                            Image {
+                                source: @image-url("icons/x.svg");
+                                width: 16px;
+                                height: 16px;
+                                colorize: close-tw-touch.has-hover ? #ffffff : #a1a1aa;
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border-subtle; }
+
+                    VerticalLayout {
+                        vertical-stretch: 0;
+                        spacing: 5px;
+                        Text { text: "NOMBRE DE LA TORRE / BLOQUE / MANZANA:"; color: Theme.text-secondary; font-size: 11px; font-weight: 800; }
+                        LineEdit {
+                            height: 36px;
+                            vertical-stretch: 0;
+                            horizontal-stretch: 1;
+                            text <=> root.form-tower-name;
+                            placeholder-text: "Ej: Torre 3, Bloque Sur, Manzana B";
+                            accepted => { root.save-tower(); }
+                        }
+                    }
+
+                    Rectangle { vertical-stretch: 1; }
+                    Rectangle { height: 1px; background: Theme.border-subtle; }
+
+                    VerticalLayout {
+                        vertical-stretch: 0;
+                        spacing: 8px;
+
+                        TacticalButton {
+                            text: root.editing-tower-id == "" ? "GUARDAR TORRE" : "GUARDAR CAMBIOS";
+                            icon: @image-url("icons/check.svg");
+                            has-icon: true;
+                            primary: true;
+                            h-stretch: 1;
+                            font-size: 13px;
+                            clicked => { root.save-tower(); }
+                        }
+
+                        TacticalButton {
+                            text: "CANCELAR [ESC]";
+                            icon: @image-url("icons/x.svg");
+                            has-icon: true;
+                            h-stretch: 1;
+                            font-size: 12px;
+                            clicked => { root.cancel-tower-drawer(); }
+                        }
+
+                        // Solo visible para el Administrador (RN-UN-09); Rust lo valida de nuevo.
+                        if (root.editing-tower-id != "" && root.is-admin): TacticalButton {
+                            text: root.confirm-delete-tower ? "CONFIRMAR: ELIMINAR ESTA TORRE" : "ELIMINAR TORRE";
+                            icon: @image-url("icons/trash-2.svg");
+                            has-icon: true;
+                            danger: true;
+                            h-stretch: 1;
+                            font-size: 12px;
+                            clicked => {
+                                if (root.confirm-delete-tower) {
+                                    root.delete-tower();
+                                } else {
+                                    root.confirm-delete-tower = true;
+                                }
                             }
                         }
                     }

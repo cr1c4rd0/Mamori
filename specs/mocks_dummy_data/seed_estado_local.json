@@ -1,4 +1,10 @@
 {
+  "towers": [
+    { "id": "t1", "name": "Torre 1", "is_active": true },
+    { "id": "t2", "name": "Torre 2", "is_active": true },
+    { "id": "t3", "name": "Bloque Norte", "is_active": true },
+    { "id": "t4", "name": "Manzana A", "is_active": true }
+  ],
   "units": [
     { "id": "u1", "tower": "Torre 1", "unit_number": "Apto 101", "unit_type": "Apartamento", "intercom": "Ext. 101", "mobile": "300 123 4567", "landline": "(604) 444 0001", "parking": ["P-101"] },
     { "id": "u2", "tower": "Torre 1", "unit_number": "Apto 102", "unit_type": "Apartamento", "intercom": null, "mobile": "315 987 6543", "landline": null, "parking": ["P-102", "P-102B"] },
