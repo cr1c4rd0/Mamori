@@ -6,6 +6,24 @@ use slint::{Model, VecModel};
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
+use std::time::Duration;
+
+/// Muestra una alerta flotante en la parte inferior de la pantalla con cierre automático (4s).
+fn show_bottom_alert(ui: &AppWindow, kind: &str, message: &str) {
+    ui.set_alert_kind(kind.into());
+    ui.set_alert_message(message.into());
+    ui.set_show_alert(true);
+
+    let ui_handle = ui.as_weak();
+    let expected_msg = message.to_string();
+    slint::Timer::single_shot(Duration::from_secs(4), move || {
+        if let Some(ui) = ui_handle.upgrade() {
+            if ui.get_alert_message().as_str() == expected_msg {
+                ui.set_show_alert(false);
+            }
+        }
+    });
+}
 
 /// Filtra en tiempo real los parqueaderos del catálogo maestro:
 /// 1. Excluye cualquier parqueadero ya seleccionado para el inmueble en edición.
@@ -51,6 +69,46 @@ fn filter_and_update_picker(
 
     let picker_model = Rc::new(VecModel::from(items));
     ui.set_filtered_parking_options(picker_model.into());
+}
+
+/// Filtra en tiempo real los inmuebles registrados para asociarlos a un residente,
+/// excluyendo los inmuebles que ya fueron seleccionados en el formulario actual.
+fn filter_and_update_unit_picker(
+    ui: &AppWindow,
+    units_model: &VecModel<UnitItem>,
+    selected_units_model: &VecModel<slint::SharedString>,
+    query: &str,
+) {
+    let selected_set: HashSet<String> = (0..selected_units_model.row_count())
+        .filter_map(|i| selected_units_model.row_data(i).map(|s| s.to_string()))
+        .collect();
+
+    let query_lower = query.trim().to_lowercase();
+    let mut items = Vec::new();
+
+    for i in 0..units_model.row_count() {
+        if let Some(u) = units_model.row_data(i) {
+            let display = format!("{} - {}", u.tower, u.unit_number);
+            if selected_set.contains(&display) {
+                continue;
+            }
+            if !query_lower.is_empty()
+                && !display.to_lowercase().contains(&query_lower)
+                && !u.unit_type.to_lowercase().contains(&query_lower)
+            {
+                continue;
+            }
+            items.push(UnitPickerItem {
+                tower: u.tower,
+                unit_number: u.unit_number,
+                unit_type: u.unit_type,
+                display_name: display.into(),
+            });
+        }
+    }
+
+    let picker_model = Rc::new(VecModel::from(items));
+    ui.set_filtered_unit_options(picker_model.into());
 }
 
 #[tokio::main]
@@ -258,6 +316,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let selected_parking_model = Rc::new(VecModel::default());
     ui.set_selected_parking_list(selected_parking_model.clone().into());
 
+    // Callback para cerrar manualmente la alerta inferior
+    ui.on_dismiss_alert({
+        let ui_handle = ui.as_weak();
+        move || {
+            if let Some(ui) = ui_handle.upgrade() {
+                ui.set_show_alert(false);
+            }
+        }
+    });
+
     // Callbacks de Autenticación (Login / Cerrar Sesión)
     ui.on_attempt_login({
         let ui_handle = ui.as_weak();
@@ -278,14 +346,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     ui.set_current_user_role(role.into());
                     ui.set_login_password("".into());
                     ui.set_login_error("".into());
+                    ui.set_show_alert(false);
                     ui.set_active_module("home".into());
                     ui.set_current_view_title("DASHBOARD".into());
                     ui.set_status_text("DASHBOARD".into());
                     ui.set_is_authenticated(true);
                 } else {
                     tracing::warn!("Intento de acceso fallido para usuario: {}", username);
-                    ui.set_login_error("Usuario o contraseña incorrectos.".into());
+                    ui.set_login_error("".into());
                     ui.set_login_password("".into());
+                    show_bottom_alert(&ui, "error", "Usuario o contraseña incorrectos. Verifique e intente nuevamente.");
                 }
             }
         }
@@ -399,27 +469,113 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    // Callbacks Módulo Residentes: Abrir/Cancelar Drawer, Buscar y Guardar
+    // Callbacks Módulo Residentes: Abrir/Cancelar Drawer, Sub-panel de Inmuebles, Buscar y Guardar
+    let selected_resident_units_model = Rc::new(VecModel::<slint::SharedString>::default());
+    ui.set_selected_resident_units(selected_resident_units_model.clone().into());
+
+    let sel_res_units_open = selected_resident_units_model.clone();
     ui.on_open_resident_drawer({
         let ui_handle = ui.as_weak();
+        let sel_units = sel_res_units_open.clone();
         move || {
             if let Some(ui) = ui_handle.upgrade() {
+                sel_units.set_vec(Vec::new());
                 ui.set_form_resident_doc("".into());
                 ui.set_form_resident_name("".into());
                 ui.set_form_resident_unit("".into());
                 ui.set_form_resident_role("Propietario".into());
                 ui.set_form_resident_mobile("".into());
                 ui.set_form_resident_email("".into());
+                ui.set_show_unit_picker(false);
                 ui.set_show_resident_drawer(true);
             }
         }
     });
 
+    let sel_res_units_cancel = selected_resident_units_model.clone();
     ui.on_cancel_resident_drawer({
+        let ui_handle = ui.as_weak();
+        let sel_units = sel_res_units_cancel.clone();
+        move || {
+            if let Some(ui) = ui_handle.upgrade() {
+                sel_units.set_vec(Vec::new());
+                ui.set_show_unit_picker(false);
+                ui.set_show_resident_drawer(false);
+            }
+        }
+    });
+
+    let units_picker_open = units_model.clone();
+    let sel_res_units_picker = selected_resident_units_model.clone();
+    ui.on_open_unit_picker({
+        let ui_handle = ui.as_weak();
+        let units_vec = units_picker_open.clone();
+        let sel_units = sel_res_units_picker.clone();
+        move || {
+            if let Some(ui) = ui_handle.upgrade() {
+                ui.set_unit_search_query("".into());
+                filter_and_update_unit_picker(&ui, &units_vec, &sel_units, "");
+                ui.set_show_unit_picker(true);
+            }
+        }
+    });
+
+    ui.on_close_unit_picker({
         let ui_handle = ui.as_weak();
         move || {
             if let Some(ui) = ui_handle.upgrade() {
-                ui.set_show_resident_drawer(false);
+                ui.set_show_unit_picker(false);
+            }
+        }
+    });
+
+    let units_picker_search = units_model.clone();
+    let sel_res_units_search = selected_resident_units_model.clone();
+    ui.on_search_units({
+        let ui_handle = ui.as_weak();
+        let units_vec = units_picker_search.clone();
+        let sel_units = sel_res_units_search.clone();
+        move |query| {
+            if let Some(ui) = ui_handle.upgrade() {
+                filter_and_update_unit_picker(&ui, &units_vec, &sel_units, query.as_str());
+            }
+        }
+    });
+
+    let sel_res_units_pick = selected_resident_units_model.clone();
+    ui.on_pick_unit({
+        let ui_handle = ui.as_weak();
+        let sel_units = sel_res_units_pick.clone();
+        move |val| {
+            let already = (0..sel_units.row_count()).any(|i| sel_units.row_data(i) == Some(val.clone()));
+            if !already {
+                sel_units.push(val.clone());
+            }
+            if let Some(ui) = ui_handle.upgrade() {
+                ui.set_show_unit_picker(false);
+                ui.set_status_text(format!("Inmueble {} asociado al residente.", val).into());
+            }
+        }
+    });
+
+    let sel_res_units_remove = selected_resident_units_model.clone();
+    ui.on_remove_resident_unit({
+        let ui_handle = ui.as_weak();
+        let sel_units = sel_res_units_remove.clone();
+        move |idx| {
+            if idx >= 0 && (idx as usize) < sel_units.row_count() {
+                let mut current = Vec::new();
+                for i in 0..sel_units.row_count() {
+                    if i != (idx as usize) {
+                        if let Some(item) = sel_units.row_data(i) {
+                            current.push(item);
+                        }
+                    }
+                }
+                sel_units.set_vec(current);
+                if let Some(ui) = ui_handle.upgrade() {
+                    ui.set_status_text("Inmueble removido de la asociación.".into());
+                }
             }
         }
     });
@@ -453,40 +609,51 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let master_res_save = master_residents.clone();
     let res_model_save = residents_model.clone();
+    let sel_res_units_save = selected_resident_units_model.clone();
     ui.on_save_resident({
         let ui_handle = ui.as_weak();
         let master = master_res_save.clone();
         let model = res_model_save.clone();
+        let sel_units = sel_res_units_save.clone();
         move || {
             if let Some(ui) = ui_handle.upgrade() {
                 let name = ui.get_form_resident_name();
                 let doc = ui.get_form_resident_doc();
-                let unit = ui.get_form_resident_unit();
                 let role = ui.get_form_resident_role();
                 let mobile = ui.get_form_resident_mobile();
                 let email = ui.get_form_resident_email();
 
-                if name.trim().is_empty() || unit.trim().is_empty() {
-                    ui.set_status_text("Error: Ingrese al menos nombre completo e inmueble del residente.".into());
+                let mut assigned_units = Vec::new();
+                for i in 0..sel_units.row_count() {
+                    if let Some(u) = sel_units.row_data(i) {
+                        assigned_units.push(u.to_string());
+                    }
+                }
+
+                if name.trim().is_empty() || assigned_units.is_empty() {
+                    show_bottom_alert(&ui, "error", "Ingrese nombre completo y asigne al menos un inmueble.");
                     return;
                 }
 
+                let unit_summary = assigned_units.join(", ");
                 let new_res = ResidentItem {
                     id: format!("r-{}", master.borrow().len() + 1).into(),
                     full_name: name.clone(),
                     document: if doc.trim().is_empty() { "Sin documento".into() } else { doc },
-                    unit_label: unit.clone(),
+                    unit_label: unit_summary.clone().into(),
                     role,
                     mobile: if mobile.trim().is_empty() { "—".into() } else { mobile },
                     email: if email.trim().is_empty() { "—".into() } else { email },
                 };
 
                 master.borrow_mut().push(new_res);
+                sel_units.set_vec(Vec::new());
                 ui.set_resident_search_query("".into());
                 model.set_vec(master.borrow().clone());
 
-                tracing::info!("Residente registrado: {} en {}", name, unit);
-                ui.set_status_text(format!("Residente {} registrado en {}.", name, unit).into());
+                tracing::info!("Residente registrado: {} en {}", name, unit_summary);
+                ui.set_status_text(format!("Residente {} registrado en {}.", name, unit_summary).into());
+                ui.set_show_unit_picker(false);
                 ui.set_show_resident_drawer(false);
             }
         }
@@ -617,7 +784,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(ui) = ui_handle.upgrade() {
                 let code = ui.get_form_parking_code();
                 let spot_type = ui.get_form_parking_type();
-                if !code.trim().is_empty() {
+                if code.trim().is_empty() {
+                    show_bottom_alert(&ui, "error", "Ingrese un código o identificador para el parqueadero.");
+                    return;
+                }
+                {
                     let formatted = format!("{} ({})", code.trim(), spot_type);
                     let shared_str = slint::SharedString::from(formatted.clone());
 
@@ -662,7 +833,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let selected_tower = ui.get_selected_tower();
 
                 if unit_number.trim().is_empty() {
-                    ui.set_status_text("Error: Ingrese un número de inmueble antes de guardar.".into());
+                    show_bottom_alert(&ui, "error", "Ingrese un número de inmueble antes de guardar.");
                     return;
                 }
 

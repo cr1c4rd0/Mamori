@@ -308,6 +308,13 @@ export struct ParkingPickerItem {
     display_name: string,
 }
 
+export struct UnitPickerItem {
+    tower: string,
+    unit_number: string,
+    unit_type: string,
+    display_name: string,
+}
+
 export struct UnitItem {
     id: string,
     tower: string,
@@ -338,6 +345,9 @@ export component AppWindow inherits Window {
     background: Theme.bg-window;
 
     in-out property <bool> is-authenticated: false;
+    in-out property <bool> show-alert: false;
+    in-out property <string> alert-message: "";
+    in-out property <string> alert-kind: "error";
     in-out property <string> login-username: "";
     in-out property <string> login-password: "";
     in-out property <string> login-error: "";
@@ -360,6 +370,10 @@ export component AppWindow inherits Window {
     in-out property <[ResidentItem]> residents: [];
     in-out property <string> resident-search-query: "";
     in-out property <bool> show-resident-drawer: false;
+    in-out property <bool> show-unit-picker: false;
+    in-out property <string> unit-search-query: "";
+    in-out property <[UnitPickerItem]> filtered-unit-options: [];
+    in-out property <[string]> selected-resident-units: [];
     in-out property <string> form-resident-doc: "";
     in-out property <string> form-resident-name: "";
     in-out property <string> form-resident-unit: "";
@@ -420,6 +434,7 @@ export component AppWindow inherits Window {
 
     callback attempt-login();
     callback logout();
+    callback dismiss-alert();
     callback quick-action(string);
     callback select-tower(string);
     callback register-visit-exit(int);
@@ -428,6 +443,11 @@ export component AppWindow inherits Window {
     callback cancel-resident-drawer();
     callback search-residents(string);
     callback save-resident();
+    callback open-unit-picker();
+    callback close-unit-picker();
+    callback search-units(string);
+    callback pick-unit(string);
+    callback remove-resident-unit(int);
     callback open-drawer();
     callback cancel-drawer();
     callback save-unit();
@@ -452,6 +472,10 @@ export component AppWindow inherits Window {
                 }
                 if (root.show-parking-picker) {
                     root.close-parking-picker();
+                    return accept;
+                }
+                if (root.show-unit-picker) {
+                    root.close-unit-picker();
                     return accept;
                 }
                 if (root.show-resident-drawer) {
@@ -2513,6 +2537,10 @@ export component AppWindow inherits Window {
             resident-drawer-scope := FocusScope {
                 key-pressed(event) => {
                     if (event.text == Key.Escape) {
+                        if (root.show-unit-picker) {
+                            root.close-unit-picker();
+                            return accept;
+                        }
                         root.cancel-resident-drawer();
                         return accept;
                     }
@@ -2595,16 +2623,90 @@ export component AppWindow inherits Window {
                             }
                         }
 
+                        // SECCIÓN DE INMUEBLES / UNIDADES ASOCIADAS (MISMO PATRÓN QUE PARQUEADEROS)
                         VerticalLayout {
                             vertical-stretch: 0;
-                            spacing: 4px;
-                            Text { text: "INMUEBLE / PREDIO ASOCIADO:"; color: Theme.text-secondary; font-size: 11px; font-weight: 800; }
-                            LineEdit {
-                                height: 36px;
-                                vertical-stretch: 0;
-                                horizontal-stretch: 1;
-                                text <=> root.form-resident-unit;
-                                placeholder-text: "Ej: Torre 1 - Apto 301";
+                            spacing: 8px;
+
+                            Text {
+                                text: "INMUEBLES / UNIDADES ASOCIADAS:";
+                                color: #2dd4bf;
+                                font-size: 11px;
+                                font-weight: 800;
+                            }
+
+                            if (root.selected-resident-units.length == 0): Rectangle {
+                                height: 38px;
+                                background: Theme.bg-surface;
+                                border-radius: 6px;
+                                border-width: 1px;
+                                border-color: Theme.border-subtle;
+
+                                HorizontalLayout {
+                                    padding-left: 14px;
+                                    Text {
+                                        text: "Ningún inmueble asociado a este residente";
+                                        color: Theme.text-faint;
+                                        font-size: 12px;
+                                        font-weight: 500;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+
+                            for unit-val[idx] in root.selected-resident-units: Rectangle {
+                                height: 38px;
+                                background: Theme.bg-surface;
+                                border-radius: 6px;
+                                border-width: 1px;
+                                border-color: Theme.border-strong;
+
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 8px;
+                                    alignment: space-between;
+
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        VerticalLayout {
+                                            alignment: center;
+                                            Image {
+                                                source: @image-url("icons/building-2.svg");
+                                                width: 14px;
+                                                height: 14px;
+                                                colorize: #2dd4bf;
+                                            }
+                                        }
+                                        Text {
+                                            text: unit-val;
+                                            color: Theme.text-primary;
+                                            font-size: 13px;
+                                            font-weight: 700;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+
+                                    VerticalLayout {
+                                        alignment: center;
+                                        DeleteButton {
+                                            clicked => {
+                                                root.remove-resident-unit(idx);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            TacticalButton {
+                                text: "ASIGNAR INMUEBLE";
+                                icon: @image-url("icons/plus.svg");
+                                has-icon: true;
+                                h-stretch: 1;
+                                font-size: 12px;
+                                active: root.show-unit-picker;
+                                clicked => {
+                                    root.open-unit-picker();
+                                }
                             }
                         }
 
@@ -2690,6 +2792,210 @@ export component AppWindow inherits Window {
                             h-stretch: 1;
                             font-size: 12px;
                             clicked => { root.cancel-resident-drawer(); }
+                        }
+                    }
+                }
+
+                // ============================================================
+                // SUB-PANEL INFERIOR: BÚSQUEDA Y ASIGNACIÓN DE INMUEBLES
+                // ============================================================
+                if (root.show-unit-picker): Rectangle {
+                    x: 0;
+                    y: parent.height - self.height;
+                    width: parent.width;
+                    height: 440px;
+                    background: Theme.bg-panel;
+                    border-width: 1px;
+                    border-color: #2dd4bf;
+                    border-radius: 8px;
+
+                    TouchArea { clicked => { /* Absorbe clics internos */ } }
+
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 10px;
+
+                        // CABECERA
+                        HorizontalLayout {
+                            alignment: space-between;
+
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text {
+                                    text: "INMUEBLES DISPONIBLES";
+                                    color: Theme.text-primary;
+                                    font-size: 14px;
+                                    font-weight: 900;
+                                }
+                                Text {
+                                    text: "Seleccione una unidad para asociarla a este residente";
+                                    color: Theme.text-secondary;
+                                    font-size: 11px;
+                                    font-weight: 500;
+                                }
+                            }
+
+                            Rectangle {
+                                width: 28px;
+                                height: 28px;
+                                border-radius: 14px;
+                                background: unit-picker-close-touch.has-hover ? Theme.bg-hover : Theme.bg-elevated;
+
+                                unit-picker-close-touch := TouchArea {
+                                    clicked => { root.close-unit-picker(); }
+                                }
+
+                                Image {
+                                    source: @image-url("icons/x.svg");
+                                    width: 14px;
+                                    height: 14px;
+                                    colorize: unit-picker-close-touch.has-hover ? Theme.text-primary : Theme.text-secondary;
+                                }
+                            }
+                        }
+
+                        Rectangle { height: 1px; background: Theme.border-strong; }
+
+                        // BUSCADOR EN TIEMPO REAL
+                        VerticalLayout {
+                            vertical-stretch: 0;
+                            spacing: 4px;
+                            HorizontalLayout {
+                                spacing: 5px;
+                                alignment: start;
+                                VerticalLayout {
+                                    alignment: center;
+                                    Image { source: @image-url("icons/search.svg"); width: 12px; height: 12px; colorize: #2dd4bf; }
+                                }
+                                Text {
+                                    text: "BUSCADOR DE INMUEBLES:";
+                                    color: #2dd4bf;
+                                    font-size: 10px;
+                                    font-weight: 800;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            LineEdit {
+                                height: 36px;
+                                vertical-stretch: 0;
+                                horizontal-stretch: 1;
+                                text <=> root.unit-search-query;
+                                placeholder-text: "Buscar por torre o inmueble (ej: Torre 1, 201)...";
+                                edited(q) => {
+                                    root.search-units(q);
+                                }
+                            }
+                        }
+
+                        // LISTA DE RESULTADOS
+                        if (root.filtered-unit-options.length == 0): Rectangle {
+                            vertical-stretch: 1;
+                            background: Theme.bg-surface;
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: Theme.border-subtle;
+
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 4px;
+                                Text {
+                                    text: "No se encontraron inmuebles disponibles";
+                                    color: Theme.text-secondary;
+                                    font-size: 12px;
+                                    font-weight: 700;
+                                    horizontal-alignment: center;
+                                }
+                                Text {
+                                    text: "Verifique el término de búsqueda o cree el predio en Unidades";
+                                    color: Theme.text-faint;
+                                    font-size: 11px;
+                                    horizontal-alignment: center;
+                                }
+                            }
+                        }
+
+                        if (root.filtered-unit-options.length > 0): ScrollView {
+                            vertical-stretch: 1;
+                            VerticalLayout {
+                                alignment: start;
+                                spacing: 6px;
+                                for uitem in root.filtered-unit-options: Rectangle {
+                                    height: 40px;
+                                    background: unit-item-touch.has-hover ? Theme.bg-hover : Theme.bg-surface;
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: unit-item-touch.has-hover ? #2dd4bf : Theme.border-strong;
+
+                                    unit-item-touch := TouchArea {
+                                        clicked => {
+                                            root.pick-unit(uitem.display-name);
+                                        }
+                                    }
+
+                                    HorizontalLayout {
+                                        padding-left: 14px;
+                                        padding-right: 14px;
+                                        alignment: space-between;
+
+                                        HorizontalLayout {
+                                            spacing: 10px;
+                                            VerticalLayout {
+                                                alignment: center;
+                                                Image {
+                                                    source: @image-url("icons/building-2.svg");
+                                                    width: 15px;
+                                                    height: 15px;
+                                                    colorize: #2dd4bf;
+                                                }
+                                            }
+                                            Text {
+                                                text: uitem.display-name;
+                                                color: Theme.text-primary;
+                                                font-size: 13px;
+                                                font-weight: 800;
+                                                vertical-alignment: center;
+                                            }
+                                            Rectangle {
+                                                width: 82px;
+                                                height: 20px;
+                                                border-radius: 4px;
+                                                background: Theme.dark-mode ? #134e4a : #ccfbf1;
+                                                border-width: 1px;
+                                                border-color: #2dd4bf;
+                                                y: 10px;
+
+                                                Text {
+                                                    text: uitem.unit-type;
+                                                    color: Theme.dark-mode ? #5eead4 : #0f766e;
+                                                    font-size: 10px;
+                                                    font-weight: 800;
+                                                    horizontal-alignment: center;
+                                                    vertical-alignment: center;
+                                                }
+                                            }
+                                        }
+
+                                        Text {
+                                            text: "ASIGNAR ↵";
+                                            color: unit-item-touch.has-hover ? #22c55e : Theme.text-muted;
+                                            font-size: 11px;
+                                            font-weight: 800;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        TacticalButton {
+                            text: "CERRAR LISTA [ESC]";
+                            icon: @image-url("icons/x.svg");
+                            has-icon: true;
+                            h-stretch: 1;
+                            font-size: 11px;
+                            clicked => {
+                                root.close-unit-picker();
+                            }
                         }
                     }
                 }
@@ -2838,6 +3144,88 @@ export component AppWindow inherits Window {
                     font-size: 10px;
                     font-weight: 700;
                     horizontal-alignment: center;
+                }
+            }
+        }
+    }
+
+    // ========================================================================
+    // ALERTA GLOBAL FLOTANTE EN LA PARTE INFERIOR (SIEMPRE VISIBLE ENCIMA)
+    // ========================================================================
+    if (root.show-alert): Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: parent.height - self.height - 24px;
+        width: 540px;
+        height: 48px;
+        border-radius: 8px;
+        border-width: 1.5px;
+        border-color: root.alert-kind == "success"
+            ? (Theme.dark-mode ? #22c55e : #16a34a)
+            : (Theme.dark-mode ? #ef4444 : #dc2626);
+        background: root.alert-kind == "success"
+            ? (Theme.dark-mode ? #052e16 : #f0fdf4)
+            : (Theme.dark-mode ? #450a0a : #fef2f2);
+
+        TouchArea { clicked => { /* Absorbe clic */ } }
+
+        HorizontalLayout {
+            padding-left: 16px;
+            padding-right: 12px;
+            spacing: 12px;
+            alignment: space-between;
+
+            HorizontalLayout {
+                spacing: 10px;
+                alignment: start;
+
+                VerticalLayout {
+                    alignment: center;
+                    Image {
+                        source: root.alert-kind == "success"
+                            ? @image-url("icons/check.svg")
+                            : @image-url("icons/alert-circle.svg");
+                        width: 18px;
+                        height: 18px;
+                        colorize: root.alert-kind == "success"
+                            ? (Theme.dark-mode ? #4ade80 : #16a34a)
+                            : (Theme.dark-mode ? #f87171 : #dc2626);
+                    }
+                }
+
+                Text {
+                    text: root.alert-message;
+                    color: root.alert-kind == "success"
+                        ? (Theme.dark-mode ? #dcfce7 : #166534)
+                        : (Theme.dark-mode ? #fecaca : #991b1b);
+                    font-size: 12px;
+                    font-weight: 700;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 26px;
+                    height: 26px;
+                    border-radius: 13px;
+                    background: alert-close-touch.has-hover
+                        ? (Theme.dark-mode ? #7f1d1d : #fee2e2)
+                        : transparent;
+
+                    alert-close-touch := TouchArea {
+                        clicked => { root.dismiss-alert(); }
+                    }
+
+                    Image {
+                        source: @image-url("icons/x.svg");
+                        width: 14px;
+                        height: 14px;
+                        colorize: root.alert-kind == "success"
+                            ? (Theme.dark-mode ? #86efac : #15803d)
+                            : (Theme.dark-mode ? #fca5a5 : #b91c1c);
+                    }
                 }
             }
         }
