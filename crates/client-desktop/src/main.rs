@@ -721,6 +721,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
+    // Maximizar automáticamente la ventana al tamaño del monitor al iniciar
+    ui.window().set_maximized(true);
+
     // Iniciar bucle de eventos nativo de Windows (GPU / Win32)
     ui.run()?;
 
